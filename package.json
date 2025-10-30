@@ -1,0 +1,37 @@
+{
+  "name": "shiftrec",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "npx pnpm --filter @shiftrec/web dev",
+    "dev:api": "npx pnpm --filter @shiftrec/api start:dev",
+    "dev": "concurrently -n web,api -c blue,green \"npx pnpm dev:web\" \"npx pnpm dev:api\"",
+    "build": "npx pnpm -r build",
+    "lint": "npx pnpm -r lint",
+    "format": "prettier --write .",
+    "prepare": "husky install || true",
+    "db:index": "cd apps/web && node scripts/create-indexes.js",
+    "db:seed": "cd apps/web && node scripts/seed.js",
+    "db:list": "cd apps/web && node scripts/list-seed-data.js"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1",
+    "prettier": "^3.3.3",
+    "husky": "^9.0.11",
+    "lint-staged": "^15.2.2"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css}": [
+      "prettier --write"
+    ]
+  }
+}
+
