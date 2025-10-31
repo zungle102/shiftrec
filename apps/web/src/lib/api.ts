@@ -68,6 +68,7 @@ export const api = {
 			streetAddress: string
 			suburb: string
 			state: string
+			postcode: string
 			phoneNumber: string
 			businessWebsite: string
 			businessABN: string
@@ -79,6 +80,306 @@ export const api = {
 		apiRequest<{ ok: boolean }>('/user/profile', {
 			method: 'PATCH',
 			body: JSON.stringify(data)
+		}, userEmail),
+
+	// Team Members
+		getTeamMembers: (userEmail: string, includeArchived?: boolean) =>
+		apiRequest<Array<{
+			id: string
+			name: string
+			email: string
+			phone: string
+			idType: string
+			idNumber: string
+			address: string
+			suburb: string
+			state: string
+			postcode: string
+			active: boolean
+			archived: boolean
+			createdAt: string
+			updatedAt: string
+		}>>(`/team/members${includeArchived ? '?includeArchived=true' : ''}`, {
+			method: 'GET'
+		}, userEmail),
+
+	createTeamMember: (userEmail: string, data: { name: string; email: string; phone?: string; idType?: string; idNumber?: string; address?: string; suburb?: string; state?: string; postcode?: string }) =>
+		apiRequest<{
+			id: string
+			name: string
+			email: string
+			phone: string
+			idType: string
+			idNumber: string
+			address: string
+			suburb: string
+			state: string
+			postcode: string
+		}>('/team/members', {
+			method: 'POST',
+			body: JSON.stringify(data)
+		}, userEmail),
+
+	updateTeamMember: (userEmail: string, memberId: string, data: { name: string; email: string; phone?: string; idType?: string; idNumber?: string; address?: string; suburb?: string; state?: string; postcode?: string }) =>
+		apiRequest<{
+			id: string
+			name: string
+			email: string
+			phone: string
+			idType: string
+			idNumber: string
+			address: string
+			suburb: string
+			state: string
+			postcode: string
+		}>(`/team/members/${memberId}`, {
+			method: 'PATCH',
+			body: JSON.stringify(data)
+		}, userEmail),
+
+	deleteTeamMember: (userEmail: string, memberId: string) =>
+		apiRequest<{ success: boolean; archived: boolean }>(`/team/members/${memberId}`, {
+			method: 'DELETE'
+		}, userEmail),
+
+	restoreTeamMember: (userEmail: string, memberId: string) =>
+		apiRequest<{
+			id: string
+			archived: boolean
+		}>(`/team/members/${memberId}/restore`, {
+			method: 'PATCH'
+		}, userEmail),
+
+	toggleTeamMemberActive: (userEmail: string, memberId: string) =>
+		apiRequest<{
+			id: string
+			active: boolean
+		}>(`/team/members/${memberId}/toggle-active`, {
+			method: 'PATCH'
+		}, userEmail),
+
+	// Shifts
+		getShifts: (userEmail: string, includeArchived?: boolean) =>
+		apiRequest<Array<{
+			id: string
+			serviceDate: string
+			startTime: string
+			endTime: string
+			breakDuration: string
+			serviceType: string
+			clientName: string
+			clientLocation: string
+			clientType: string
+			clientEmail: string
+			clientPhoneNumber: string
+			clientContactPerson: string
+			clientContactPhone: string
+			teamMemberId: string
+			teamMemberName: string
+			status: string
+			note: string
+			archived: boolean
+			createdAt: string
+			updatedAt: string
+		}>>(`/shift/shifts${includeArchived ? '?includeArchived=true' : ''}`, {
+			method: 'GET'
+		}, userEmail),
+
+	createShift: (userEmail: string, data: {
+		serviceDate: string
+		startTime: string
+		endTime: string
+		breakDuration?: string
+		serviceType?: string
+		clientName: string
+		clientLocation?: string
+		clientType?: string
+		clientEmail?: string
+		clientPhoneNumber?: string
+		clientContactPerson?: string
+		clientContactPhone?: string
+		teamMemberId?: string
+		note?: string
+	}) =>
+		apiRequest<{
+			id: string
+			serviceDate: string
+			startTime: string
+			endTime: string
+			breakDuration: string
+			serviceType: string
+			clientName: string
+			clientLocation: string
+			clientType: string
+			clientEmail: string
+			clientPhoneNumber: string
+			clientContactPerson: string
+			clientContactPhone: string
+			teamMemberId: string
+			teamMemberName: string
+			note: string
+		}>('/shift/shifts', {
+			method: 'POST',
+			body: JSON.stringify(data)
+		}, userEmail),
+
+	updateShift: (userEmail: string, shiftId: string, data: {
+		serviceDate: string
+		startTime: string
+		endTime: string
+		breakDuration?: string
+		serviceType?: string
+		clientName: string
+		clientLocation?: string
+		clientType?: string
+		clientEmail?: string
+		clientPhoneNumber?: string
+		clientContactPerson?: string
+		clientContactPhone?: string
+		teamMemberId?: string
+		note?: string
+	}) =>
+		apiRequest<{
+			id: string
+			serviceDate: string
+			startTime: string
+			endTime: string
+			breakDuration: string
+			serviceType: string
+			clientName: string
+			clientLocation: string
+			clientType: string
+			clientEmail: string
+			clientPhoneNumber: string
+			clientContactPerson: string
+			clientContactPhone: string
+			teamMemberId: string
+			teamMemberName: string
+			note: string
+		}>(`/shift/shifts/${shiftId}`, {
+			method: 'PATCH',
+			body: JSON.stringify(data)
+		}, userEmail),
+
+	deleteShift: (userEmail: string, shiftId: string) =>
+		apiRequest<{ success: boolean; archived: boolean }>(`/shift/shifts/${shiftId}`, {
+			method: 'DELETE'
+		}, userEmail),
+
+	restoreShift: (userEmail: string, shiftId: string) =>
+		apiRequest<{
+			success: boolean
+			archived: boolean
+		}>(`/shift/shifts/${shiftId}/restore`, {
+			method: 'PATCH'
+		}, userEmail),
+
+	// Clients
+	getClients: (userEmail: string, includeArchived?: boolean) =>
+		apiRequest<Array<{
+			id: string
+			name: string
+			address: string
+			suburb: string
+			state: string
+			postcode: string
+			clientType: string
+			phoneNumber: string
+			contactPerson: string
+			contactPhone: string
+			email: string
+			note: string
+			active: boolean
+			archived: boolean
+			createdAt: string
+			updatedAt: string
+		}>>(`/client/clients${includeArchived ? '?includeArchived=true' : ''}`, {
+			method: 'GET'
+		}, userEmail),
+
+	createClient: (userEmail: string, data: {
+		name: string
+		address?: string
+		suburb?: string
+		state?: string
+		postcode?: string
+		clientType?: string
+		phoneNumber?: string
+		contactPerson?: string
+		contactPhone?: string
+		email?: string
+		note?: string
+	}) =>
+		apiRequest<{
+			id: string
+			name: string
+			address: string
+			suburb: string
+			state: string
+			postcode: string
+			clientType: string
+			phoneNumber: string
+			contactPerson: string
+			contactPhone: string
+			email: string
+			note: string
+		}>('/client/clients', {
+			method: 'POST',
+			body: JSON.stringify(data)
+		}, userEmail),
+
+	updateClient: (userEmail: string, clientId: string, data: {
+		name: string
+		address?: string
+		suburb?: string
+		state?: string
+		postcode?: string
+		clientType?: string
+		phoneNumber?: string
+		contactPerson?: string
+		contactPhone?: string
+		email?: string
+		note?: string
+		active?: boolean
+	}) =>
+		apiRequest<{
+			id: string
+			name: string
+			address: string
+			suburb: string
+			state: string
+			postcode: string
+			clientType: string
+			phoneNumber: string
+			contactPerson: string
+			contactPhone: string
+			email: string
+			note: string
+			active: boolean
+		}>(`/client/clients/${clientId}`, {
+			method: 'PATCH',
+			body: JSON.stringify(data)
+		}, userEmail),
+
+	deleteClient: (userEmail: string, clientId: string) =>
+		apiRequest<{ success: boolean }>(`/client/clients/${clientId}`, {
+			method: 'DELETE'
+		}, userEmail),
+
+	toggleClientActive: (userEmail: string, clientId: string) =>
+		apiRequest<{
+			id: string
+			active: boolean
+		}>(`/client/clients/${clientId}/toggle-active`, {
+			method: 'PATCH'
+		}, userEmail),
+
+	restoreClient: (userEmail: string, clientId: string) =>
+		apiRequest<{
+			id: string
+			archived: boolean
+		}>(`/client/clients/${clientId}/restore`, {
+			method: 'PATCH'
 		}, userEmail)
 }
 

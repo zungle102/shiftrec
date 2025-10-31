@@ -5,7 +5,7 @@ import { Navbar } from '../components/Navbar'
 import { Footer } from '../components/Footer'
 
 export const metadata = {
-	title: 'ShiftRec - Recording and Managing Workshifts Smoothly',
+	title: 'ShiftRec - Seamlessly manage and track every shift.',
 	description: 'Signup-enabled app with NextAuth and MongoDB'
 }
 

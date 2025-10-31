@@ -13,6 +13,7 @@ const profileSchema = z.object({
 	streetAddress: z.string().max(200, 'Street address is too long').optional().or(z.literal('')),
 	suburb: z.string().max(100, 'Suburb is too long').optional().or(z.literal('')),
 	state: z.string().max(50, 'State is too long').optional().or(z.literal('')),
+	postcode: z.string().max(10, 'Postcode is too long').optional().or(z.literal('')),
 	phoneNumber: z.string().max(20, 'Phone number is too long').optional().or(z.literal('')),
 	businessWebsite: z.string().url('Invalid website URL').max(200, 'Website URL is too long').optional().or(z.literal('')),
 	businessABN: z.string().max(11, 'ABN must be 11 digits').regex(/^\d{11}$|^$/, 'ABN must be exactly 11 digits').optional().or(z.literal(''))
@@ -37,6 +38,7 @@ export default function ProfilePage() {
 			streetAddress: '',
 			suburb: '',
 			state: '',
+			postcode: '',
 			phoneNumber: '',
 			businessWebsite: '',
 			businessABN: ''
@@ -52,16 +54,17 @@ export default function ProfilePage() {
 				const { api } = await import('../../../lib/api')
 				const data = await api.getProfile(session.user.email)
 				setProfileData(data)
-				reset({
-					name: data.name || '',
-					businessName: data.businessName || '',
-					streetAddress: data.streetAddress || '',
-					suburb: data.suburb || '',
-					state: data.state || '',
-					phoneNumber: data.phoneNumber || '',
-					businessWebsite: data.businessWebsite || '',
-					businessABN: data.businessABN || ''
-				})
+					reset({
+						name: data.name || '',
+						businessName: data.businessName || '',
+						streetAddress: data.streetAddress || '',
+						suburb: data.suburb || '',
+						state: data.state || '',
+						postcode: data.postcode || '',
+						phoneNumber: data.phoneNumber || '',
+						businessWebsite: data.businessWebsite || '',
+						businessABN: data.businessABN || ''
+					})
 			} catch (err) {
 				console.error('Failed to fetch profile:', err)
 			} finally {
@@ -93,6 +96,7 @@ export default function ProfilePage() {
 				streetAddress: values.streetAddress || '',
 				suburb: values.suburb || '',
 				state: values.state || '',
+				postcode: values.postcode || '',
 				phoneNumber: values.phoneNumber || '',
 				businessWebsite: values.businessWebsite || '',
 				businessABN: values.businessABN || ''
@@ -123,7 +127,7 @@ export default function ProfilePage() {
 				<div className="max-w-2xl mx-auto">
 					<div className="mb-8">
 						<h1 className="text-3xl font-bold text-gray-900 mb-2">Edit Profile</h1>
-						<p className="text-gray-600">Update your personal information</p>
+						<p className="text-gray-600">Update your business information</p>
 						{session?.user?.email && (
 							<div className="mt-4 flex justify-center">
 								<div className="inline-flex items-center px-4 py-2 rounded-lg bg-blue-50 border border-blue-200">
@@ -170,35 +174,60 @@ export default function ProfilePage() {
 								)}
 							</div>
 
+							<div>
+								<label htmlFor="suburb" className="block text-sm font-medium text-gray-700 mb-2">
+									Suburb
+								</label>
+								<input
+									id="suburb"
+									type="text"
+									className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+									placeholder="Woodville Gardens"
+									{...register('suburb')}
+								/>
+								{errors.suburb && (
+									<p className="mt-1 text-sm text-red-600">{errors.suburb.message}</p>
+								)}
+							</div>
+
 							<div className="grid grid-cols-2 gap-4">
-								<div>
-									<label htmlFor="suburb" className="block text-sm font-medium text-gray-700 mb-2">
-										Suburb
-									</label>
-									<input
-										id="suburb"
-										type="text"
-										className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-										placeholder="Woodville Gardens"
-										{...register('suburb')}
-									/>
-									{errors.suburb && (
-										<p className="mt-1 text-sm text-red-600">{errors.suburb.message}</p>
-									)}
-								</div>
 								<div>
 									<label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
 										State
 									</label>
-									<input
+									<select
 										id="state"
-										type="text"
-										className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-										placeholder="SA"
+										className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 										{...register('state')}
-									/>
+									>
+										<option value="">Select State</option>
+										<option value="NSW">NSW</option>
+										<option value="VIC">VIC</option>
+										<option value="QLD">QLD</option>
+										<option value="SA">SA</option>
+										<option value="WA">WA</option>
+										<option value="TAS">TAS</option>
+										<option value="NT">NT</option>
+										<option value="ACT">ACT</option>
+									</select>
 									{errors.state && (
 										<p className="mt-1 text-sm text-red-600">{errors.state.message}</p>
+									)}
+								</div>
+								<div>
+									<label htmlFor="postcode" className="block text-sm font-medium text-gray-700 mb-2">
+										Postcode
+									</label>
+									<input
+										id="postcode"
+										type="text"
+										className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+										placeholder="5012"
+										maxLength={10}
+										{...register('postcode')}
+									/>
+									{errors.postcode && (
+										<p className="mt-1 text-sm text-red-600">{errors.postcode.message}</p>
 									)}
 								</div>
 							</div>
@@ -280,20 +309,20 @@ export default function ProfilePage() {
 								</div>
 							)}
 
-							<div className="flex items-center justify-between pt-4">
-								<button
-									type="submit"
-									disabled={isSubmitting}
-									className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-								>
-									{isSubmitting ? 'Saving...' : 'Save Changes'}
-								</button>
+							<div className="flex items-center justify-end space-x-4 pt-4">
 								<button
 									type="button"
 									onClick={() => router.back()}
 									className="px-6 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
 								>
 									Cancel
+								</button>
+								<button
+									type="submit"
+									disabled={isSubmitting}
+									className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+								>
+									{isSubmitting ? 'Saving...' : 'Save Changes'}
 								</button>
 							</div>
 						</form>

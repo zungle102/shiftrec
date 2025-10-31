@@ -9,7 +9,7 @@ export function Footer() {
 					<div>
 						<h3 className="text-white text-lg font-semibold mb-4">ShiftRec</h3>
 						<p className="text-sm mb-4">
-							Recording and Managing Workshifts Smoothly
+							Seamlessly manage and track every shift.
 						</p>
 						<div className="space-y-2 text-sm">
 							<p>46 Hanson Road</p>
