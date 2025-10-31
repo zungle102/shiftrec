@@ -24,6 +24,7 @@ export class UserService {
 			streetAddress: user.streetAddress || '',
 			suburb: user.suburb || '',
 			state: user.state || '',
+			postcode: user.postcode || '',
 			phoneNumber: user.phoneNumber || '',
 			businessWebsite: user.businessWebsite || '',
 			businessABN: user.businessABN || ''
@@ -36,7 +37,7 @@ export class UserService {
 			throw new BadRequestException('Invalid input')
 		}
 
-		const { name, businessName, streetAddress, suburb, state, phoneNumber, businessWebsite, businessABN } = parsed.data
+		const { name, businessName, streetAddress, suburb, state, postcode, phoneNumber, businessWebsite, businessABN } = parsed.data
 		const db = await this.databaseService.getDb()
 
 		const updateData: any = {
@@ -48,6 +49,7 @@ export class UserService {
 		if (streetAddress !== undefined) updateData.streetAddress = streetAddress || null
 		if (suburb !== undefined) updateData.suburb = suburb || null
 		if (state !== undefined) updateData.state = state || null
+		if (postcode !== undefined) updateData.postcode = postcode || null
 		if (phoneNumber !== undefined) updateData.phoneNumber = phoneNumber || null
 		if (businessWebsite !== undefined) updateData.businessWebsite = businessWebsite || null
 		if (businessABN !== undefined) updateData.businessABN = businessABN || null

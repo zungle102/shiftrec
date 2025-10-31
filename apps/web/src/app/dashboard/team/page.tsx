@@ -50,7 +50,7 @@ export default function ManageTeamPage() {
 	const [togglingMemberId, setTogglingMemberId] = useState<string | null>(null)
 	const [restoringMemberId, setRestoringMemberId] = useState<string | null>(null)
 	const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
-	const [showArchived, setShowArchived] = useState(false)
+	const [showInactive, setShowInactive] = useState(false)
 
 	const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<TeamMemberFormValues>({
 		resolver: zodResolver(teamMemberSchema),
@@ -73,7 +73,7 @@ export default function ManageTeamPage() {
 			return
 		}
 		fetchTeamMembers()
-	}, [session, router, showArchived])
+	}, [session, router, showInactive])
 
 	// Close dropdown when clicking outside
 	useEffect(() => {
@@ -95,8 +95,12 @@ export default function ManageTeamPage() {
 		setError(null)
 		try {
 			const { api } = await import('../../../lib/api')
-			const data = await api.getTeamMembers(session.user.email, showArchived)
-			setMembers(data)
+			const data = await api.getTeamMembers(session.user.email)
+			// Filter by inactive status if needed (exclude archived items)
+			const filtered = showInactive 
+				? data.filter(member => !member.archived) 
+				: data.filter(member => !member.archived && member.active !== false)
+			setMembers(filtered)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load team members')
 		} finally {
@@ -229,12 +233,11 @@ export default function ManageTeamPage() {
 						<label className="flex items-center space-x-2 cursor-pointer">
 							<input
 								type="checkbox"
-								id="showArchived"
-								checked={showArchived}
-								onChange={(e) => setShowArchived(e.target.checked)}
+								checked={showInactive}
+								onChange={(e) => setShowInactive(e.target.checked)}
 								className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
 							/>
-							<span className="text-sm font-medium text-gray-700">Show archived team members</span>
+							<span className="text-sm font-medium text-gray-700">Show Inactive</span>
 						</label>
 						<button
 							onClick={openAddModal}
@@ -243,7 +246,7 @@ export default function ManageTeamPage() {
 							<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
 							</svg>
-							<span>Add Team Member</span>
+							<span>New Team Member</span>
 						</button>
 					</div>
 				</div>
@@ -267,9 +270,12 @@ export default function ManageTeamPage() {
 						<p className="text-sm text-gray-500 mb-6">Get started by adding your first team member</p>
 						<button
 							onClick={openAddModal}
-							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
 						>
-							Add Team Member
+							<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+							</svg>
+							<span>New Team Member</span>
 						</button>
 					</div>
 				) : (
@@ -353,7 +359,7 @@ export default function ManageTeamPage() {
 																				handleToggleActive(member.id)
 																			}}
 																			disabled={togglingMemberId === member.id}
-																			className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+																			className={`w-full text-left px-4 py-2 text-sm flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${member.active !== false ? 'text-gray-700 hover:bg-gray-100' : 'text-green-600 hover:bg-green-50'}`}
 																		>
 																			<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 																				<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={member.active !== false ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" : "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"} />

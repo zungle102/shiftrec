@@ -11,10 +11,16 @@ export default async function DashboardPage() {
 
 	// Fetch team members count
 	let teamMemberCount = 0
+	let activeTeamMemberCount = 0
+	let inactiveTeamMemberCount = 0
 	try {
 		if (session.user?.email) {
 			const members = await api.getTeamMembers(session.user.email)
 			teamMemberCount = members.length
+			// Count active team members (not archived and active: true)
+			activeTeamMemberCount = members.filter(member => !member.archived && member.active !== false).length
+			// Count inactive team members (not archived and active: false)
+			inactiveTeamMemberCount = members.filter(member => !member.archived && member.active === false).length
 		}
 	} catch (error) {
 		console.error('Failed to fetch team members:', error)
@@ -23,10 +29,16 @@ export default async function DashboardPage() {
 
 	// Fetch clients count
 	let clientCount = 0
+	let activeClientCount = 0
+	let inactiveClientCount = 0
 	try {
 		if (session.user?.email) {
 			const clients = await api.getClients(session.user.email)
 			clientCount = clients.length
+			// Count active clients (not archived and active: true)
+			activeClientCount = clients.filter(client => !client.archived && client.active !== false).length
+			// Count inactive clients (not archived and active: false)
+			inactiveClientCount = clients.filter(client => !client.archived && client.active === false).length
 		}
 	} catch (error) {
 		console.error('Failed to fetch clients:', error)
@@ -38,8 +50,6 @@ export default async function DashboardPage() {
 	let hoursThisWeek = 0
 	let averageShiftsPerWeek = 0
 	let averageHoursPerWeek = 0
-	let activeClientCount = 0
-	let activeTeamMemberCount = 0
 	try {
 		if (session.user?.email) {
 			const shifts = await api.getShifts(session.user.email)
@@ -96,14 +106,6 @@ export default async function DashboardPage() {
 					totalHours += Math.max(0, hours)
 				})
 				averageHoursPerWeek = Math.round((totalHours / weeksDiff) * 10) / 10 // Round to 1 decimal
-
-				// Calculate active clients (clients used in shifts)
-				const activeClientNames = new Set(shifts.map(s => s.clientName))
-				activeClientCount = activeClientNames.size
-
-				// Calculate active team members (team members assigned to shifts)
-				const activeTeamMemberIds = new Set(shifts.filter(s => s.teamMemberId).map(s => s.teamMemberId))
-				activeTeamMemberCount = activeTeamMemberIds.size
 			}
 		}
 	} catch (error) {
@@ -123,9 +125,9 @@ export default async function DashboardPage() {
 				{/* Dashboard Stats */}
 				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
 					<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-						<div className="flex items-center justify-between">
+						<div className="flex items-center justify-between mb-4">
 							<div>
-								<p className="text-sm font-medium text-gray-600 mb-1">Total Clients</p>
+								<p className="text-sm font-medium text-gray-600 mb-1">Clients</p>
 								<p className="text-3xl font-bold text-gray-900">{clientCount}</p>
 							</div>
 							<div className="w-12 h-12 bg-indigo-100 rounded-lg flex items-center justify-center">
@@ -134,24 +136,20 @@ export default async function DashboardPage() {
 								</svg>
 							</div>
 						</div>
-					</div>
-
-					<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-gray-600 mb-1">Active Clients</p>
-								<p className="text-3xl font-bold text-gray-900">{activeClientCount}</p>
+						<div className="space-y-2 pt-4 border-t border-gray-100">
+							<div className="flex items-center justify-between">
+								<span className="text-sm text-gray-600">Active</span>
+								<span className="text-sm font-semibold text-gray-900">{activeClientCount}</span>
 							</div>
-							<div className="w-12 h-12 bg-pink-100 rounded-lg flex items-center justify-center">
-								<svg className="w-6 h-6 text-pink-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-								</svg>
+							<div className="flex items-center justify-between">
+								<span className="text-sm text-gray-600">Inactive</span>
+								<span className="text-sm font-semibold text-gray-900">{inactiveClientCount}</span>
 							</div>
 						</div>
 					</div>
 
 					<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-						<div className="flex items-center justify-between">
+						<div className="flex items-center justify-between mb-4">
 							<div>
 								<p className="text-sm font-medium text-gray-600 mb-1">Team Members</p>
 								<p className="text-3xl font-bold text-gray-900">{teamMemberCount}</p>
@@ -162,26 +160,22 @@ export default async function DashboardPage() {
 								</svg>
 							</div>
 						</div>
-					</div>
-
-					<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-gray-600 mb-1">Active Team Members</p>
-								<p className="text-3xl font-bold text-gray-900">{activeTeamMemberCount}</p>
+						<div className="space-y-2 pt-4 border-t border-gray-100">
+							<div className="flex items-center justify-between">
+								<span className="text-sm text-gray-600">Active</span>
+								<span className="text-sm font-semibold text-gray-900">{activeTeamMemberCount}</span>
 							</div>
-							<div className="w-12 h-12 bg-cyan-100 rounded-lg flex items-center justify-center">
-								<svg className="w-6 h-6 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-								</svg>
+							<div className="flex items-center justify-between">
+								<span className="text-sm text-gray-600">Inactive</span>
+								<span className="text-sm font-semibold text-gray-900">{inactiveTeamMemberCount}</span>
 							</div>
 						</div>
 					</div>
 
 					<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-						<div className="flex items-center justify-between">
+						<div className="flex items-center justify-between mb-4">
 							<div>
-								<p className="text-sm font-medium text-gray-600 mb-1">Shifts This Week</p>
+								<p className="text-sm font-medium text-gray-600 mb-1">Shifts</p>
 								<p className="text-3xl font-bold text-gray-900">{shiftsThisWeek}</p>
 							</div>
 							<div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
@@ -190,26 +184,22 @@ export default async function DashboardPage() {
 								</svg>
 							</div>
 						</div>
-					</div>
-
-					<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-gray-600 mb-1">Avg Shifts/Week</p>
-								<p className="text-3xl font-bold text-gray-900">{averageShiftsPerWeek}</p>
+						<div className="space-y-2 pt-4 border-t border-gray-100">
+							<div className="flex items-center justify-between">
+								<span className="text-sm text-gray-600">This Week</span>
+								<span className="text-sm font-semibold text-gray-900">{shiftsThisWeek}</span>
 							</div>
-							<div className="w-12 h-12 bg-teal-100 rounded-lg flex items-center justify-center">
-								<svg className="w-6 h-6 text-teal-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-								</svg>
+							<div className="flex items-center justify-between">
+								<span className="text-sm text-gray-600">Avg/Week</span>
+								<span className="text-sm font-semibold text-gray-900">{averageShiftsPerWeek}</span>
 							</div>
 						</div>
 					</div>
 
 					<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-						<div className="flex items-center justify-between">
+						<div className="flex items-center justify-between mb-4">
 							<div>
-								<p className="text-sm font-medium text-gray-600 mb-1">Hours This Week</p>
+								<p className="text-sm font-medium text-gray-600 mb-1">Hours</p>
 								<p className="text-3xl font-bold text-gray-900">{hoursThisWeek}</p>
 							</div>
 							<div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -218,18 +208,14 @@ export default async function DashboardPage() {
 								</svg>
 							</div>
 						</div>
-					</div>
-
-					<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-						<div className="flex items-center justify-between">
-							<div>
-								<p className="text-sm font-medium text-gray-600 mb-1">Avg Hours/Week</p>
-								<p className="text-3xl font-bold text-gray-900">{averageHoursPerWeek}</p>
+						<div className="space-y-2 pt-4 border-t border-gray-100">
+							<div className="flex items-center justify-between">
+								<span className="text-sm text-gray-600">This Week</span>
+								<span className="text-sm font-semibold text-gray-900">{hoursThisWeek}</span>
 							</div>
-							<div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-								<svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-								</svg>
+							<div className="flex items-center justify-between">
+								<span className="text-sm text-gray-600">Avg/Week</span>
+								<span className="text-sm font-semibold text-gray-900">{averageHoursPerWeek}</span>
 							</div>
 						</div>
 					</div>

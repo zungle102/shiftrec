@@ -54,8 +54,8 @@ export default function ClientsPage() {
 	const [deletingClientId, setDeletingClientId] = useState<string | null>(null)
 	const [togglingClientId, setTogglingClientId] = useState<string | null>(null)
 	const [restoringClientId, setRestoringClientId] = useState<string | null>(null)
-	const [showArchived, setShowArchived] = useState(false)
 	const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
+	const [showInactive, setShowInactive] = useState(false)
 
 	const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<ClientFormValues>({
 		resolver: zodResolver(clientSchema),
@@ -80,7 +80,7 @@ export default function ClientsPage() {
 			return
 		}
 		fetchClients()
-	}, [session, router, showArchived])
+	}, [session, router, showInactive])
 
 	// Close dropdown when clicking outside
 	useEffect(() => {
@@ -102,8 +102,12 @@ export default function ClientsPage() {
 		setError(null)
 		try {
 			const { api } = await import('../../../lib/api')
-			const data = await api.getClients(session.user.email, showArchived)
-			setClients(data)
+			const data = await api.getClients(session.user.email)
+			// Filter by inactive status if needed (exclude archived items)
+			const filtered = showInactive 
+				? data.filter(client => !client.archived) 
+				: data.filter(client => !client.archived && client.active !== false)
+			setClients(filtered)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load clients')
 		} finally {
@@ -243,17 +247,20 @@ export default function ClientsPage() {
 						<label className="flex items-center space-x-2 cursor-pointer">
 							<input
 								type="checkbox"
-								checked={showArchived}
-								onChange={(e) => setShowArchived(e.target.checked)}
+								checked={showInactive}
+								onChange={(e) => setShowInactive(e.target.checked)}
 								className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
 							/>
-							<span className="text-sm font-medium text-gray-700">Show archived clients</span>
+							<span className="text-sm font-medium text-gray-700">Show Inactive</span>
 						</label>
 						<button
 							onClick={openAddModal}
-							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
 						>
-							Add Client
+							<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+							</svg>
+							<span>New Client</span>
 						</button>
 					</div>
 				</div>
@@ -277,9 +284,12 @@ export default function ClientsPage() {
 						<p className="text-sm text-gray-500 mb-6">Get started by adding your first client</p>
 						<button
 							onClick={openAddModal}
-							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
 						>
-							Add Client
+							<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+							</svg>
+							<span>New Client</span>
 						</button>
 					</div>
 				) : (
@@ -391,7 +401,7 @@ export default function ClientsPage() {
 																				setOpenDropdownId(null)
 																			}}
 																			disabled={togglingClientId === client.id}
-																			className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+																			className={`w-full text-left px-4 py-2 text-sm flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${client.active !== false ? 'text-gray-700 hover:bg-gray-100' : 'text-green-600 hover:bg-green-50'}`}
 																		>
 																			<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 																				<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={client.active !== false ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" : "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"} />

@@ -22,7 +22,7 @@ const shiftSchema = z.object({
 	clientContactPerson: z.string().max(100, 'Client contact person is too long').optional().or(z.literal('')),
 	clientContactPhone: z.string().max(20, 'Client contact phone is too long').optional().or(z.literal('')),
 	teamMemberId: z.string().max(100, 'Team member ID is too long').optional().or(z.literal('')),
-	status: z.enum(['Planned', 'Open', 'Assigned', 'Confirmed', 'In Progress', 'Completed', 'Not Completed', 'Canceled', 'Timesheet Submitted', 'Approved', 'Missed', 'Declined']).optional().default('Planned'),
+	status: z.enum(['Planned', 'Published', 'Assigned', 'Confirmed', 'Declined', 'In Progress', 'Completed', 'Missed', 'Canceled', 'Timesheet Submitted', 'Approved']).optional().default('Planned'),
 	note: z.string().max(1000, 'Note is too long').optional().or(z.literal(''))
 })
 
@@ -80,7 +80,7 @@ export default function ShiftsPage() {
 	const [restoringShiftId, setRestoringShiftId] = useState<string | null>(null)
 	const [selectedClientId, setSelectedClientId] = useState<string>('')
 	const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
-	const [showArchived, setShowArchived] = useState(false)
+	const [showInactive, setShowInactive] = useState(false)
 
 	const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue } = useForm<ShiftFormValues>({
 		resolver: zodResolver(shiftSchema),
@@ -128,7 +128,7 @@ export default function ShiftsPage() {
 		fetchShifts()
 		fetchClients()
 		fetchTeamMembers()
-	}, [session, router, showArchived])
+	}, [session, router, showInactive])
 
 	// Close dropdown when clicking outside
 	useEffect(() => {
@@ -149,7 +149,9 @@ export default function ShiftsPage() {
 		try {
 			const { api } = await import('../../../lib/api')
 			const data = await api.getTeamMembers(session.user.email)
-			setTeamMembers(data.map(member => ({ id: member.id, name: member.name, email: member.email })))
+			// Filter to only active team members (not archived and active !== false)
+			const activeMembers = data.filter(member => !member.archived && member.active !== false)
+			setTeamMembers(activeMembers.map(member => ({ id: member.id, name: member.name, email: member.email })))
 		} catch (err) {
 			console.error('Failed to load team members:', err)
 		}
@@ -161,11 +163,13 @@ export default function ShiftsPage() {
 		try {
 			const { api } = await import('../../../lib/api')
 			const data = await api.getClients(session.user.email)
-			setClients(data)
+			// Filter to only active clients (not archived and active !== false)
+			const activeClients = data.filter(client => !client.archived && client.active !== false)
+			setClients(activeClients)
 			// If a client ID is provided, select it after fetching
 			if (selectClientId) {
 				setSelectedClientId(selectClientId)
-				const client = data.find(c => c.id === selectClientId)
+				const client = activeClients.find(c => c.id === selectClientId)
 				if (client) {
 					setValue('clientName', client.name)
 					setValue('clientLocation', `${client.address ? client.address + ', ' : ''}${client.suburb ? client.suburb + ', ' : ''}${client.state || ''} ${client.postcode || ''}`.trim())
@@ -204,8 +208,12 @@ export default function ShiftsPage() {
 		setError(null)
 		try {
 			const { api } = await import('../../../lib/api')
-			const data = await api.getShifts(session.user.email, showArchived)
-			setShifts(data)
+			const data = await api.getShifts(session.user.email)
+			// Filter by archived status (inactive) if needed
+			const filtered = showInactive 
+				? data 
+				: data.filter(shift => shift.archived !== true)
+			setShifts(filtered)
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load shifts')
 		} finally {
@@ -378,18 +386,20 @@ export default function ShiftsPage() {
 						<label className="flex items-center space-x-2 cursor-pointer">
 							<input
 								type="checkbox"
-								id="showArchived"
-								checked={showArchived}
-								onChange={(e) => setShowArchived(e.target.checked)}
+								checked={showInactive}
+								onChange={(e) => setShowInactive(e.target.checked)}
 								className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
 							/>
-							<span className="text-sm font-medium text-gray-700">Show archived shifts</span>
+							<span className="text-sm font-medium text-gray-700">Show Inactive</span>
 						</label>
 						<button
 							onClick={openAddModal}
-							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
 						>
-							Add Shift
+							<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+							</svg>
+							<span>New Shift</span>
 						</button>
 					</div>
 				</div>
@@ -413,9 +423,12 @@ export default function ShiftsPage() {
 						<p className="text-sm text-gray-500 mb-6">Get started by creating your first shift</p>
 						<button
 							onClick={openAddModal}
-							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
 						>
-							Add Shift
+							<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+							</svg>
+							<span>New Shift</span>
 						</button>
 					</div>
 				) : (
@@ -470,7 +483,7 @@ export default function ShiftsPage() {
 													<span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
 														shift.status === 'Completed' || shift.status === 'Approved'
 															? 'bg-green-100 text-green-800'
-															: shift.status === 'Canceled' || shift.status === 'Declined' || shift.status === 'Missed' || shift.status === 'Not Completed'
+															: shift.status === 'Canceled' || shift.status === 'Declined' || shift.status === 'Missed'
 															? 'bg-red-100 text-red-800'
 															: shift.status === 'In Progress'
 															? 'bg-blue-100 text-blue-800'
@@ -565,9 +578,25 @@ export default function ShiftsPage() {
 
 								<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 									<div>
-										<label htmlFor="clientSelect" className="block text-sm font-medium text-gray-700 mb-2">
-											Select Client
-										</label>
+										<div className="flex items-center justify-between mb-2">
+											<label htmlFor="clientSelect" className="block text-sm font-medium text-gray-700">
+												Select Client
+											</label>
+											<button
+												type="button"
+												onClick={() => {
+													setIsAddClientModalOpen(true)
+													setSelectedClientId('')
+												}}
+												className="text-sm text-blue-600 hover:text-blue-700 font-medium flex items-center space-x-1"
+												disabled={!!editingShift}
+											>
+												<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+													<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+												</svg>
+												<span>New Client</span>
+											</button>
+										</div>
 										<select
 											id="clientSelect"
 											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
@@ -581,7 +610,6 @@ export default function ShiftsPage() {
 													{client.name}
 												</option>
 											))}
-											<option value="new">+ New Client</option>
 										</select>
 									</div>
 
@@ -695,17 +723,16 @@ export default function ShiftsPage() {
 											{...register('status')}
 										>
 											<option value="Planned">Planned</option>
-											<option value="Open">Open</option>
+											<option value="Published">Published</option>
 											<option value="Assigned">Assigned</option>
 											<option value="Confirmed">Confirmed</option>
+											<option value="Declined">Declined</option>
 											<option value="In Progress">In Progress</option>
 											<option value="Completed">Completed</option>
-											<option value="Not Completed">Not Completed</option>
+											<option value="Missed">Missed</option>
 											<option value="Canceled">Canceled</option>
 											<option value="Timesheet Submitted">Timesheet Submitted</option>
 											<option value="Approved">Approved</option>
-											<option value="Missed">Missed</option>
-											<option value="Declined">Declined</option>
 										</select>
 										{errors.status && (
 											<p className="mt-1 text-sm text-red-600">{errors.status.message}</p>
