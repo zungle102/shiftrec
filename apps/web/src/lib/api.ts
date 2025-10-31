@@ -224,12 +224,12 @@ export const api = {
 		}, userEmail),
 
 	updateShift: (userEmail: string, shiftId: string, data: {
-		serviceDate: string
-		startTime: string
-		endTime: string
+		serviceDate?: string
+		startTime?: string
+		endTime?: string
 		breakDuration?: string
 		serviceType?: string
-		clientName: string
+		clientName?: string
 		clientLocation?: string
 		clientType?: string
 		clientEmail?: string
@@ -237,6 +237,7 @@ export const api = {
 		clientContactPerson?: string
 		clientContactPhone?: string
 		teamMemberId?: string
+		status?: string
 		note?: string
 	}) =>
 		apiRequest<{

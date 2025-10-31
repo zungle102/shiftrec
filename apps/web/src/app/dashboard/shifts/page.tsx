@@ -61,6 +61,16 @@ interface Shift {
 	status?: string
 	note: string
 	archived?: boolean
+	publishedAt?: string | null
+	assignedAt?: string | null
+	confirmedAt?: string | null
+	declinedAt?: string | null
+	inProgressAt?: string | null
+	completedAt?: string | null
+	missedAt?: string | null
+	canceledAt?: string | null
+	timesheetSubmittedAt?: string | null
+	approvedAt?: string | null
 	createdAt: string
 	updatedAt: string
 }
@@ -78,9 +88,10 @@ export default function ShiftsPage() {
 	const [editingShift, setEditingShift] = useState<Shift | null>(null)
 	const [deletingShiftId, setDeletingShiftId] = useState<string | null>(null)
 	const [restoringShiftId, setRestoringShiftId] = useState<string | null>(null)
+	const [publishingShiftId, setPublishingShiftId] = useState<string | null>(null)
+	const [assigningShiftId, setAssigningShiftId] = useState<string | null>(null)
 	const [selectedClientId, setSelectedClientId] = useState<string>('')
 	const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
-	const [showInactive, setShowInactive] = useState(false)
 
 	const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue } = useForm<ShiftFormValues>({
 		resolver: zodResolver(shiftSchema),
@@ -128,7 +139,7 @@ export default function ShiftsPage() {
 		fetchShifts()
 		fetchClients()
 		fetchTeamMembers()
-	}, [session, router, showInactive])
+	}, [session, router])
 
 	// Close dropdown when clicking outside
 	useEffect(() => {
@@ -209,11 +220,8 @@ export default function ShiftsPage() {
 		try {
 			const { api } = await import('../../../lib/api')
 			const data = await api.getShifts(session.user.email)
-			// Filter by archived status (inactive) if needed
-			const filtered = showInactive 
-				? data 
-				: data.filter(shift => shift.archived !== true)
-			setShifts(filtered)
+			// Filter out archived shifts
+			setShifts(data.filter(shift => shift.archived !== true))
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to load shifts')
 		} finally {
@@ -237,7 +245,6 @@ export default function ShiftsPage() {
 			clientPhoneNumber: '',
 			clientContactPerson: '',
 			clientContactPhone: '',
-			teamMemberId: '',
 			status: 'Planned',
 			note: ''
 		})
@@ -249,7 +256,8 @@ export default function ShiftsPage() {
 		
 		// Find the client that matches the shift's client name
 		const matchingClient = clients.find(c => c.name === shift.clientName)
-		setSelectedClientId(matchingClient ? matchingClient.id : '')
+		const clientId = matchingClient ? matchingClient.id : ''
+		setSelectedClientId(clientId)
 		
 		reset({
 			serviceDate: shift.serviceDate,
@@ -268,6 +276,12 @@ export default function ShiftsPage() {
 			teamMemberId: shift.teamMemberId || '',
 			note: shift.note || ''
 		})
+		
+		// Ensure team member is set in the form
+		if (shift.teamMemberId) {
+			setValue('teamMemberId', shift.teamMemberId)
+		}
+		
 		setIsModalOpen(true)
 	}
 
@@ -360,12 +374,92 @@ export default function ShiftsPage() {
 		}
 	}
 
+	const handlePublish = async (shiftId: string) => {
+		if (!session?.user?.email) return
+
+		setPublishingShiftId(shiftId)
+		setError(null)
+		try {
+			const { api } = await import('../../../lib/api')
+			await api.updateShift(session.user.email, shiftId, { status: 'Published' })
+			fetchShifts()
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to publish shift')
+		} finally {
+			setPublishingShiftId(null)
+		}
+	}
+
+	const handleAssign = async (shiftId: string) => {
+		if (!session?.user?.email) return
+
+		setAssigningShiftId(shiftId)
+		setError(null)
+		try {
+			const { api } = await import('../../../lib/api')
+			await api.updateShift(session.user.email, shiftId, { status: 'Assigned' })
+			fetchShifts()
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to assign shift')
+		} finally {
+			setAssigningShiftId(null)
+		}
+	}
+
 	const formatDate = (dateString: string) => {
 		try {
 			const date = new Date(dateString)
 			return date.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' })
 		} catch {
 			return dateString
+		}
+	}
+
+	const formatDateTime = (dateInput: string | Date | null | undefined) => {
+		if (!dateInput) return null
+		try {
+			// Handle both string and Date object inputs
+			const date = dateInput instanceof Date ? dateInput : new Date(dateInput)
+			if (isNaN(date.getTime())) return null
+			return date.toLocaleString('en-AU', { 
+				day: '2-digit', 
+				month: '2-digit', 
+				year: 'numeric',
+				hour: '2-digit',
+				minute: '2-digit'
+			})
+		} catch {
+			return null
+		}
+	}
+
+	const getStatusDateTime = (shift: Shift) => {
+		const status = shift.status || 'Planned'
+		switch (status) {
+			case 'Planned':
+				return shift.createdAt || null
+			case 'Published':
+				return shift.publishedAt || null
+			case 'Assigned':
+				return shift.assignedAt || null
+			case 'Confirmed':
+				return shift.confirmedAt || null
+			case 'Declined':
+				return shift.declinedAt || null
+			case 'In Progress':
+				return shift.inProgressAt || null
+			case 'Completed':
+				return shift.completedAt || null
+			case 'Missed':
+				return shift.missedAt || null
+			case 'Canceled':
+				return shift.canceledAt || null
+			case 'Timesheet Submitted':
+				return shift.timesheetSubmittedAt || null
+			case 'Approved':
+				return shift.approvedAt || null
+			default:
+				return null
 		}
 	}
 
@@ -379,19 +473,10 @@ export default function ShiftsPage() {
 			<main className="flex-1 p-6">
 				<div className="mb-6 flex items-center justify-between">
 					<div>
-						<h1 className="text-3xl font-bold text-gray-900 mb-2">Shifts</h1>
-						<p className="text-gray-600">Manage and track your work shifts</p>
+						<h1 className="text-3xl font-bold text-gray-900 mb-2">Manage Shifts</h1>
+						<p className="text-gray-600">Add, edit and remove work shifts</p>
 					</div>
 					<div className="flex items-center space-x-4">
-						<label className="flex items-center space-x-2 cursor-pointer">
-							<input
-								type="checkbox"
-								checked={showInactive}
-								onChange={(e) => setShowInactive(e.target.checked)}
-								className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-							/>
-							<span className="text-sm font-medium text-gray-700">Show Inactive</span>
-						</label>
 						<button
 							onClick={openAddModal}
 							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
@@ -444,6 +529,7 @@ export default function ShiftsPage() {
 										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Details</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Publish/Assign</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
 									</tr>
 								</thead>
@@ -480,20 +566,78 @@ export default function ShiftsPage() {
 														Archived
 													</span>
 												) : (
-													<span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-														shift.status === 'Completed' || shift.status === 'Approved'
-															? 'bg-green-100 text-green-800'
-															: shift.status === 'Canceled' || shift.status === 'Declined' || shift.status === 'Missed'
-															? 'bg-red-100 text-red-800'
-															: shift.status === 'In Progress'
-															? 'bg-blue-100 text-blue-800'
-															: shift.status === 'Confirmed' || shift.status === 'Assigned'
-															? 'bg-purple-100 text-purple-800'
-															: 'bg-gray-100 text-gray-800'
-													}`}>
-														{shift.status || 'Planned'}
-													</span>
+													<div>
+														<span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+															shift.status === 'Planned'
+																? 'bg-gray-100 text-gray-800'
+																: shift.status === 'Published'
+																? 'bg-blue-100 text-blue-800'
+																: shift.status === 'Assigned'
+																? 'bg-purple-100 text-purple-800'
+																: shift.status === 'Confirmed'
+																? 'bg-teal-100 text-teal-800'
+																: shift.status === 'Declined'
+																? 'bg-red-100 text-red-800'
+																: shift.status === 'In Progress'
+																? 'bg-amber-100 text-amber-800'
+																: shift.status === 'Completed'
+																? 'bg-green-100 text-green-800'
+																: shift.status === 'Missed'
+																? 'bg-orange-100 text-orange-800'
+																: shift.status === 'Canceled'
+																? 'bg-red-100 text-red-800'
+																: shift.status === 'Timesheet Submitted'
+																? 'bg-indigo-100 text-indigo-800'
+																: shift.status === 'Approved'
+																? 'bg-emerald-100 text-emerald-800'
+																: 'bg-gray-100 text-gray-800'
+														}`}>
+															{shift.status || 'Planned'}
+														</span>
+														{(() => {
+															const statusDateTime = getStatusDateTime(shift)
+															if (statusDateTime) {
+																const formatted = formatDateTime(statusDateTime)
+																if (formatted) {
+																	return (
+																		<div className="text-xs text-gray-500 mt-1">
+																			Updated at: {formatted}
+																		</div>
+																	)
+																}
+															}
+															return null
+														})()}
+													</div>
 												)}
+											</td>
+											<td className="px-6 py-4 whitespace-nowrap">
+												<div className="flex flex-col gap-2">
+													{!shift.archived && shift.status === 'Planned' && !shift.teamMemberId && (
+														<button
+															onClick={() => handlePublish(shift.id)}
+															disabled={publishingShiftId === shift.id}
+															className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+														>
+															<svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+															</svg>
+															{publishingShiftId === shift.id ? 'Publishing...' : 'Publish'}
+														</button>
+													)}
+													{!shift.archived && shift.status === 'Planned' && shift.teamMemberId && (
+														<button
+															onClick={() => handleAssign(shift.id)}
+															disabled={assigningShiftId === shift.id}
+															className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+														>
+															<svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+															</svg>
+															{assigningShiftId === shift.id ? 'Assigning...' : 'Assign'}
+														</button>
+													)}
+												</div>
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium relative">
 												<div className="relative action-dropdown">
@@ -693,27 +837,6 @@ export default function ShiftsPage() {
 									</div>
 
 									<div>
-										<label htmlFor="teamMemberId" className="block text-sm font-medium text-gray-700 mb-2">
-											Assign Team Member
-										</label>
-										<select
-											id="teamMemberId"
-											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-											{...register('teamMemberId')}
-										>
-											<option value="">Select a team member</option>
-											{teamMembers.map((member) => (
-												<option key={member.id} value={member.id}>
-													{member.name}
-												</option>
-											))}
-										</select>
-										{errors.teamMemberId && (
-											<p className="mt-1 text-sm text-red-600">{errors.teamMemberId.message}</p>
-										)}
-									</div>
-
-									<div>
 										<label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
 											Status
 										</label>
@@ -769,6 +892,233 @@ export default function ShiftsPage() {
 											className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 										>
 											{isSubmitting ? 'Saving...' : editingShift ? 'Update' : 'Add Shift'}
+										</button>
+									</div>
+								</form>
+							</div>
+						</div>
+					</div>
+				)}
+
+				{/* Add Client Modal */}
+				{isAddClientModalOpen && (
+					<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+						<div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+							<div className="p-6">
+								<div className="mb-6">
+									<h2 className="text-2xl font-bold text-gray-900">Add Client</h2>
+								</div>
+
+								<form onSubmit={handleSubmitClient(onSubmitClient)} className="space-y-4">
+									<div className="grid grid-cols-2 gap-4">
+										<div>
+											<label htmlFor="clientNameModal" className="block text-sm font-medium text-gray-700 mb-2">
+												Client Name *
+											</label>
+											<input
+												id="clientNameModal"
+												type="text"
+												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												placeholder="Client Name"
+												{...registerClient('name')}
+											/>
+											{clientErrors.name && (
+												<p className="mt-1 text-sm text-red-600">{clientErrors.name.message}</p>
+											)}
+										</div>
+										<div>
+											<label htmlFor="clientTypeModal" className="block text-sm font-medium text-gray-700 mb-2">
+												Client Type
+											</label>
+											<select
+												id="clientTypeModal"
+												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												{...registerClient('clientType')}
+											>
+												<option value="">Select Client Type</option>
+												<option value="Aged Care">Aged Care</option>
+												<option value="NDIS">NDIS</option>
+												<option value="Others">Others</option>
+											</select>
+											{clientErrors.clientType && (
+												<p className="mt-1 text-sm text-red-600">{clientErrors.clientType.message}</p>
+											)}
+										</div>
+									</div>
+
+									<div className="grid grid-cols-2 gap-4">
+										<div>
+											<label htmlFor="clientEmailModal" className="block text-sm font-medium text-gray-700 mb-2">
+												Email
+											</label>
+											<input
+												id="clientEmailModal"
+												type="email"
+												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												placeholder="client@example.com"
+												{...registerClient('email')}
+											/>
+											{clientErrors.email && (
+												<p className="mt-1 text-sm text-red-600">{clientErrors.email.message}</p>
+											)}
+										</div>
+										<div>
+											<label htmlFor="clientPhoneModal" className="block text-sm font-medium text-gray-700 mb-2">
+												Phone Number
+											</label>
+											<input
+												id="clientPhoneModal"
+												type="tel"
+												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												placeholder="+61 451248244"
+												{...registerClient('phoneNumber')}
+											/>
+											{clientErrors.phoneNumber && (
+												<p className="mt-1 text-sm text-red-600">{clientErrors.phoneNumber.message}</p>
+											)}
+										</div>
+									</div>
+
+									<div>
+										<label htmlFor="clientAddressModal" className="block text-sm font-medium text-gray-700 mb-2">
+											Street Address
+										</label>
+										<input
+											id="clientAddressModal"
+											type="text"
+											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+											placeholder="123 Main Street"
+											{...registerClient('address')}
+										/>
+										{clientErrors.address && (
+											<p className="mt-1 text-sm text-red-600">{clientErrors.address.message}</p>
+										)}
+									</div>
+
+									<div>
+										<label htmlFor="clientSuburbModal" className="block text-sm font-medium text-gray-700 mb-2">
+											Suburb
+										</label>
+										<input
+											id="clientSuburbModal"
+											type="text"
+											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+											placeholder="Woodville Gardens"
+											{...registerClient('suburb')}
+										/>
+										{clientErrors.suburb && (
+											<p className="mt-1 text-sm text-red-600">{clientErrors.suburb.message}</p>
+										)}
+									</div>
+
+									<div className="grid grid-cols-2 gap-4">
+										<div>
+											<label htmlFor="clientStateModal" className="block text-sm font-medium text-gray-700 mb-2">
+												State
+											</label>
+											<select
+												id="clientStateModal"
+												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												{...registerClient('state')}
+											>
+												<option value="">Select State</option>
+												<option value="NSW">NSW</option>
+												<option value="VIC">VIC</option>
+												<option value="QLD">QLD</option>
+												<option value="SA">SA</option>
+												<option value="WA">WA</option>
+												<option value="TAS">TAS</option>
+												<option value="NT">NT</option>
+												<option value="ACT">ACT</option>
+											</select>
+											{clientErrors.state && (
+												<p className="mt-1 text-sm text-red-600">{clientErrors.state.message}</p>
+											)}
+										</div>
+										<div>
+											<label htmlFor="clientPostcodeModal" className="block text-sm font-medium text-gray-700 mb-2">
+												Postcode
+											</label>
+											<input
+												id="clientPostcodeModal"
+												type="text"
+												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												placeholder="5012"
+												maxLength={10}
+												{...registerClient('postcode')}
+											/>
+											{clientErrors.postcode && (
+												<p className="mt-1 text-sm text-red-600">{clientErrors.postcode.message}</p>
+											)}
+										</div>
+									</div>
+
+									<div className="grid grid-cols-2 gap-4">
+										<div>
+											<label htmlFor="clientContactPersonModal" className="block text-sm font-medium text-gray-700 mb-2">
+												Contact Person
+											</label>
+											<input
+												id="clientContactPersonModal"
+												type="text"
+												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												placeholder="John Doe"
+												{...registerClient('contactPerson')}
+											/>
+											{clientErrors.contactPerson && (
+												<p className="mt-1 text-sm text-red-600">{clientErrors.contactPerson.message}</p>
+											)}
+										</div>
+										<div>
+											<label htmlFor="clientContactPhoneModal" className="block text-sm font-medium text-gray-700 mb-2">
+												Contact Phone
+											</label>
+											<input
+												id="clientContactPhoneModal"
+												type="tel"
+												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												placeholder="+61 451248244"
+												{...registerClient('contactPhone')}
+											/>
+											{clientErrors.contactPhone && (
+												<p className="mt-1 text-sm text-red-600">{clientErrors.contactPhone.message}</p>
+											)}
+										</div>
+									</div>
+
+									<div>
+										<label htmlFor="clientNoteModal" className="block text-sm font-medium text-gray-700 mb-2">
+											Note
+										</label>
+										<textarea
+											id="clientNoteModal"
+											rows={4}
+											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+											placeholder="Additional notes about this client..."
+											{...registerClient('note')}
+										/>
+										{clientErrors.note && (
+											<p className="mt-1 text-sm text-red-600">{clientErrors.note.message}</p>
+										)}
+									</div>
+
+									<div className="flex items-center justify-between pt-4">
+										<button
+											type="button"
+											onClick={() => {
+												setIsAddClientModalOpen(false)
+												resetClient()
+											}}
+											className="px-6 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+										>
+											Cancel
+										</button>
+										<button
+											type="submit"
+											disabled={isSubmittingClient}
+											className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+										>
+											{isSubmittingClient ? 'Saving...' : 'Add Client'}
 										</button>
 									</div>
 								</form>

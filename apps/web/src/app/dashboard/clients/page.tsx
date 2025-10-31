@@ -240,8 +240,8 @@ export default function ClientsPage() {
 			<main className="flex-1 p-6">
 				<div className="mb-6 flex items-center justify-between">
 					<div>
-						<h1 className="text-3xl font-bold text-gray-900 mb-2">Clients</h1>
-						<p className="text-gray-600">Manage your client database</p>
+						<h1 className="text-3xl font-bold text-gray-900 mb-2">Manage Clients</h1>
+						<p className="text-gray-600">Add, edit and remove clients</p>
 					</div>
 					<div className="flex items-center space-x-4">
 						<label className="flex items-center space-x-2 cursor-pointer">

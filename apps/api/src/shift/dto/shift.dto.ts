@@ -33,12 +33,12 @@ export const createShiftSchema = z.object({
 })
 
 export const updateShiftSchema = z.object({
-	serviceDate: z.string().min(1, 'Service date is required'),
-	startTime: z.string().min(1, 'Start time is required'),
-	endTime: z.string().min(1, 'End time is required'),
+	serviceDate: z.string().min(1, 'Service date is required').optional(),
+	startTime: z.string().min(1, 'Start time is required').optional(),
+	endTime: z.string().min(1, 'End time is required').optional(),
 	breakDuration: z.string().optional().or(z.literal('')).transform((val) => val === '' ? '0' : val),
 	serviceType: z.string().max(100).optional().or(z.literal('')),
-	clientName: z.string().min(1, 'Client name is required').max(200, 'Client name is too long'),
+	clientName: z.string().min(1, 'Client name is required').max(200, 'Client name is too long').optional(),
 	clientLocation: z.string().max(200).optional().or(z.literal('')),
 	clientType: z.string().max(50).optional().or(z.literal('')),
 	clientEmail: z.string().email('Invalid email address').max(200).optional().or(z.literal('')),
