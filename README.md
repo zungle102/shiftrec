@@ -23,11 +23,18 @@ A full-stack monorepo with user authentication, built with Next.js, NestJS, and 
 
 3. **Set up environment variables**:
    - Copy `apps/web/ENV.EXAMPLE` to `apps/web/.env`
-   - Fill in:
+   - Copy `apps/api/ENV.EXAMPLE` to `apps/api/.env`
+   - Fill in web app variables:
+     - `NEXT_PUBLIC_API_URL`: `http://localhost:4000` (backend API URL)
      - `MONGODB_URI`: Your MongoDB Atlas connection string
      - `NEXTAUTH_SECRET`: Generate with `openssl rand -base64 32`
      - `NEXTAUTH_URL`: `http://localhost:3000` for local dev
      - OAuth providers (optional): Google/GitHub client IDs and secrets
+   - Fill in backend API variables:
+     - `MONGODB_URI`: Your MongoDB Atlas connection string
+     - `PORT`: `4000` (default)
+     - `FRONTEND_URL`: `http://localhost:3000`
+     - `NODE_ENV`: `development`
 
 4. **Create database indexes**:
    ```bash
@@ -46,6 +53,17 @@ A full-stack monorepo with user authentication, built with Next.js, NestJS, and 
    ```
    - Web app: http://localhost:3000
    - API: http://localhost:4000
+
+### API Endpoints
+
+The backend API provides the following endpoints:
+
+- `POST /auth/signup` - User registration
+- `GET /user/profile` - Get user profile (requires `x-user-email` header)
+- `PATCH /user/profile` - Update user profile (requires `x-user-email` header)
+- `GET /health` - Health check
+
+See `API_MIGRATION.md` for detailed API documentation.
 
 ### Authentication
 
@@ -104,13 +122,17 @@ Callback URLs:
 
 4. **Set environment variables**:
    ```
+   MONGODB_URI=your_mongodb_uri
    PORT=8080
    NODE_ENV=production
+   FRONTEND_URL=https://your-app.vercel.app
    ```
 
 5. **Add health check**: `/health` endpoint
 
 6. **Deploy**: Connect your repo and deploy
+
+**Note:** Make sure to update `NEXT_PUBLIC_API_URL` in your Vercel deployment to point to your DigitalOcean API URL.
 
 ### Scripts
 

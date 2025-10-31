@@ -45,16 +45,12 @@ export default function SignupPage() {
 
 	const onSubmit = async (values: FormValues) => {
 		setError(null)
-		const res = await fetch('/api/auth/signup', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify(values)
-		})
-		if (res.ok) {
+		try {
+			const { api } = await import('../../lib/api')
+			await api.signup(values)
 			router.push('/signin')
-		} else {
-			const data = await res.json().catch(() => ({}))
-			setError(data.error ?? 'Sign up failed')
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Sign up failed')
 		}
 	}
 

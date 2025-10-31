@@ -49,21 +49,19 @@ export default function ProfilePage() {
 			if (!session?.user?.email) return
 			
 			try {
-				const res = await fetch('/api/user/profile')
-				if (res.ok) {
-					const data = await res.json()
-					setProfileData(data)
-					reset({
-						name: data.name || '',
-						businessName: data.businessName || '',
-						streetAddress: data.streetAddress || '',
-						suburb: data.suburb || '',
-						state: data.state || '',
-						phoneNumber: data.phoneNumber || '',
-						businessWebsite: data.businessWebsite || '',
-						businessABN: data.businessABN || ''
-					})
-				}
+				const { api } = await import('../../../lib/api')
+				const data = await api.getProfile(session.user.email)
+				setProfileData(data)
+				reset({
+					name: data.name || '',
+					businessName: data.businessName || '',
+					streetAddress: data.streetAddress || '',
+					suburb: data.suburb || '',
+					state: data.state || '',
+					phoneNumber: data.phoneNumber || '',
+					businessWebsite: data.businessWebsite || '',
+					businessABN: data.businessABN || ''
+				})
 			} catch (err) {
 				console.error('Failed to fetch profile:', err)
 			} finally {
@@ -84,25 +82,21 @@ export default function ProfilePage() {
 		setIsSubmitting(true)
 
 		try {
-			const res = await fetch('/api/user/profile', {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					name: values.name,
-					businessName: values.businessName || '',
-					streetAddress: values.streetAddress || '',
-					suburb: values.suburb || '',
-					state: values.state || '',
-					phoneNumber: values.phoneNumber || '',
-					businessWebsite: values.businessWebsite || '',
-					businessABN: values.businessABN || ''
-				})
-			})
-
-			if (!res.ok) {
-				const data = await res.json().catch(() => ({}))
-				throw new Error(data.error || 'Failed to update profile')
+			if (!session?.user?.email) {
+				throw new Error('User email not found')
 			}
+
+			const { api } = await import('../../../lib/api')
+			await api.updateProfile(session.user.email, {
+				name: values.name,
+				businessName: values.businessName || '',
+				streetAddress: values.streetAddress || '',
+				suburb: values.suburb || '',
+				state: values.state || '',
+				phoneNumber: values.phoneNumber || '',
+				businessWebsite: values.businessWebsite || '',
+				businessABN: values.businessABN || ''
+			})
 
 			// Update the session with new name
 			await updateSession({
@@ -161,22 +155,6 @@ export default function ProfilePage() {
 							</div>
 
 							<div>
-								<label htmlFor="businessName" className="block text-sm font-medium text-gray-700 mb-2">
-									Contact Person
-								</label>
-								<input
-									id="businessName"
-									type="text"
-									className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-									placeholder="John Doe"
-									{...register('businessName')}
-								/>
-								{errors.businessName && (
-									<p className="mt-1 text-sm text-red-600">{errors.businessName.message}</p>
-								)}
-							</div>
-
-							<div>
 								<label htmlFor="streetAddress" className="block text-sm font-medium text-gray-700 mb-2">
 									Street Address
 								</label>
@@ -223,6 +201,22 @@ export default function ProfilePage() {
 										<p className="mt-1 text-sm text-red-600">{errors.state.message}</p>
 									)}
 								</div>
+							</div>
+
+							<div>
+								<label htmlFor="businessName" className="block text-sm font-medium text-gray-700 mb-2">
+									Contact Person
+								</label>
+								<input
+									id="businessName"
+									type="text"
+									className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+									placeholder="John Doe"
+									{...register('businessName')}
+								/>
+								{errors.businessName && (
+									<p className="mt-1 text-sm text-red-600">{errors.businessName.message}</p>
+								)}
 							</div>
 
 							<div>
