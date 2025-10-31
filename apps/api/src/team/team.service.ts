@@ -253,5 +253,35 @@ export class TeamService {
 			active: newActiveStatus
 		}
 	}
+
+	async permanentlyDeleteTeamMember(ownerEmail: string, memberId: string) {
+		const db = await this.databaseService.getDb()
+		
+		// First check if team member exists and is archived
+		const member = await db.collection('teamMembers').findOne({
+			_id: new ObjectId(memberId),
+			ownerEmail
+		})
+
+		if (!member) {
+			throw new NotFoundException('Team member not found')
+		}
+
+		if (!member.archived) {
+			throw new BadRequestException('Only archived team members can be permanently deleted')
+		}
+
+		// Permanently delete the team member
+		const result = await db.collection('teamMembers').deleteOne({
+			_id: new ObjectId(memberId),
+			ownerEmail
+		})
+
+		if (result.deletedCount === 0) {
+			throw new NotFoundException('Team member not found')
+		}
+
+		return { success: true, deleted: true }
+	}
 }
 

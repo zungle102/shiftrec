@@ -37,6 +37,14 @@ export class ShiftController {
 		return await this.shiftService.updateShift(ownerEmail, shiftId, dto)
 	}
 
+	@Delete('shifts/:id/permanent')
+	async permanentlyDeleteShift(@Headers('x-user-email') ownerEmail: string, @Param('id') shiftId: string) {
+		if (!ownerEmail) {
+			return { error: 'Unauthorized' }
+		}
+		return await this.shiftService.permanentlyDeleteShift(ownerEmail, shiftId)
+	}
+
 	@Delete('shifts/:id')
 	async deleteShift(@Headers('x-user-email') ownerEmail: string, @Param('id') shiftId: string) {
 		if (!ownerEmail) {

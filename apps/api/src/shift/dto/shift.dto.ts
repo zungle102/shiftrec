@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 const shiftStatusEnum = z.enum([
 	'Planned',
-	'Published',
+	'Sent',
 	'Assigned',
 	'Confirmed',
 	'Declined',
@@ -28,6 +28,7 @@ export const createShiftSchema = z.object({
 	clientContactPerson: z.string().max(100).optional().or(z.literal('')),
 	clientContactPhone: z.string().max(20).optional().or(z.literal('')),
 	teamMemberId: z.string().max(100).optional().or(z.literal('')),
+	teamMemberIds: z.array(z.string().max(100)).optional(),
 	status: shiftStatusEnum.optional().default('Planned'),
 	note: z.string().max(1000).optional().or(z.literal(''))
 })
@@ -46,6 +47,7 @@ export const updateShiftSchema = z.object({
 	clientContactPerson: z.string().max(100).optional().or(z.literal('')),
 	clientContactPhone: z.string().max(20).optional().or(z.literal('')),
 	teamMemberId: z.string().max(100).optional().or(z.literal('')),
+	teamMemberIds: z.array(z.string().max(100)).optional(),
 	status: shiftStatusEnum.optional(),
 	note: z.string().max(1000).optional().or(z.literal(''))
 })
@@ -64,7 +66,8 @@ export class CreateShiftDto {
 	clientContactPerson?: string
 	clientContactPhone?: string
 	teamMemberId?: string
-	status?: 'Planned' | 'Published' | 'Assigned' | 'Confirmed' | 'Declined' | 'In Progress' | 'Completed' | 'Missed' | 'Canceled' | 'Timesheet Submitted' | 'Approved'
+	teamMemberIds?: string[]
+	status?: 'Planned' | 'Sent' | 'Assigned' | 'Confirmed' | 'Declined' | 'In Progress' | 'Completed' | 'Missed' | 'Canceled' | 'Timesheet Submitted' | 'Approved'
 	note?: string
 }
 
@@ -82,7 +85,8 @@ export class UpdateShiftDto {
 	clientContactPerson?: string
 	clientContactPhone?: string
 	teamMemberId?: string
-	status?: 'Planned' | 'Published' | 'Assigned' | 'Confirmed' | 'Declined' | 'In Progress' | 'Completed' | 'Missed' | 'Canceled' | 'Timesheet Submitted' | 'Approved'
+	teamMemberIds?: string[]
+	status?: 'Planned' | 'Sent' | 'Assigned' | 'Confirmed' | 'Declined' | 'In Progress' | 'Completed' | 'Missed' | 'Canceled' | 'Timesheet Submitted' | 'Approved'
 	note?: string
 }
 

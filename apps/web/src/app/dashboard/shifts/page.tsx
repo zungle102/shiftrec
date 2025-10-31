@@ -22,7 +22,7 @@ const shiftSchema = z.object({
 	clientContactPerson: z.string().max(100, 'Client contact person is too long').optional().or(z.literal('')),
 	clientContactPhone: z.string().max(20, 'Client contact phone is too long').optional().or(z.literal('')),
 	teamMemberId: z.string().max(100, 'Team member ID is too long').optional().or(z.literal('')),
-	status: z.enum(['Planned', 'Published', 'Assigned', 'Confirmed', 'Declined', 'In Progress', 'Completed', 'Missed', 'Canceled', 'Timesheet Submitted', 'Approved']).optional().default('Planned'),
+	status: z.enum(['Planned', 'Sent', 'Assigned', 'Confirmed', 'Declined', 'In Progress', 'Completed', 'Missed', 'Canceled', 'Timesheet Submitted', 'Approved']).optional().default('Planned'),
 	note: z.string().max(1000, 'Note is too long').optional().or(z.literal(''))
 })
 
@@ -58,6 +58,8 @@ interface Shift {
 	clientContactPhone: string
 	teamMemberId?: string
 	teamMemberName?: string
+	teamMemberIds?: string[]
+	teamMemberNames?: string[]
 	status?: string
 	note: string
 	archived?: boolean
@@ -83,8 +85,12 @@ export default function ShiftsPage() {
 	const [teamMembers, setTeamMembers] = useState<Array<{ id: string; name: string; email: string }>>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
+	const [successMessage, setSuccessMessage] = useState<string | null>(null)
 	const [isModalOpen, setIsModalOpen] = useState(false)
 	const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false)
+	const [isSendToModalOpen, setIsSendToModalOpen] = useState(false)
+	const [sendingToShiftId, setSendingToShiftId] = useState<string | null>(null)
+	const [selectedTeamMemberIds, setSelectedTeamMemberIds] = useState<string[]>([])
 	const [editingShift, setEditingShift] = useState<Shift | null>(null)
 	const [deletingShiftId, setDeletingShiftId] = useState<string | null>(null)
 	const [restoringShiftId, setRestoringShiftId] = useState<string | null>(null)
@@ -245,6 +251,7 @@ export default function ShiftsPage() {
 			clientPhoneNumber: '',
 			clientContactPerson: '',
 			clientContactPhone: '',
+			teamMemberId: '',
 			status: 'Planned',
 			note: ''
 		})
@@ -327,13 +334,15 @@ export default function ShiftsPage() {
 
 		setError(null)
 		try {
-			const { api } = await import('../../../lib/api')
-			
-			if (editingShift) {
-				await api.updateShift(session.user.email, editingShift.id, values)
-			} else {
-				await api.createShift(session.user.email, values)
-			}
+		const { api } = await import('../../../lib/api')
+		
+		if (editingShift) {
+			// Ensure edited shifts are updated with "Planned" status
+			await api.updateShift(session.user.email, editingShift.id, { ...values, status: 'Planned' })
+		} else {
+			// Ensure new shifts are created with "Planned" status
+			await api.createShift(session.user.email, { ...values, status: 'Planned' })
+		}
 
 			closeModal()
 			fetchShifts()
@@ -377,17 +386,82 @@ export default function ShiftsPage() {
 	const handlePublish = async (shiftId: string) => {
 		if (!session?.user?.email) return
 
-		setPublishingShiftId(shiftId)
+		// Open the Send To modal
+		setSendingToShiftId(shiftId)
+		setSelectedTeamMemberIds([])
+		setIsSendToModalOpen(true)
+	}
+
+		const handleConfirmSendTo = async () => {
+		if (!session?.user?.email || !sendingToShiftId) return
+
+		if (selectedTeamMemberIds.length === 0) {
+			setError('Please select at least one team member')
+			return
+		}
+
+		setPublishingShiftId(sendingToShiftId)
 		setError(null)
+		setSuccessMessage(null)
 		try {
 			const { api } = await import('../../../lib/api')
-			await api.updateShift(session.user.email, shiftId, { status: 'Published' })
+			
+			// Get the shift to check existing team members
+			const shift = shifts.find(s => s.id === sendingToShiftId)
+			if (!shift) {
+				setError('Shift not found')
+				return
+			}
+
+			// Combine existing team member IDs with newly selected ones (avoid duplicates)
+			const existingTeamMemberIds = shift.teamMemberIds || (shift.teamMemberId ? [shift.teamMemberId] : [])
+			const combinedTeamMemberIds = [...new Set([...existingTeamMemberIds, ...selectedTeamMemberIds])]
+			
+			// Update the shift with all team member IDs
+			await api.updateShift(session.user.email, sendingToShiftId, { 
+				status: 'Sent',
+				teamMemberIds: combinedTeamMemberIds
+			})
+			
+			// Get team member names for notification
+			const teamMemberNames = selectedTeamMemberIds
+				.map(id => teamMembers.find(m => m.id === id)?.name)
+				.filter(Boolean)
+			
+			if (teamMemberNames.length > 0) {
+				const namesText = teamMemberNames.length === 1 
+					? teamMemberNames[0]
+					: teamMemberNames.length === 2
+					? `${teamMemberNames[0]} and ${teamMemberNames[1]}`
+					: `${teamMemberNames.slice(0, -1).join(', ')}, and ${teamMemberNames[teamMemberNames.length - 1]}`
+				
+				setSuccessMessage(`Shift has been sent to ${namesText}`)
+			}
+			
+			// Auto-hide success message after 5 seconds
+			setTimeout(() => {
+				setSuccessMessage(null)
+			}, 5000)
+			
+			setIsSendToModalOpen(false)
+			setSendingToShiftId(null)
+			setSelectedTeamMemberIds([])
 			fetchShifts()
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to publish shift')
+			setError(err instanceof Error ? err.message : 'Failed to send shift')
 		} finally {
 			setPublishingShiftId(null)
 		}
+	}
+
+	const handleTeamMemberToggle = (teamMemberId: string) => {
+		setSelectedTeamMemberIds(prev => {
+			if (prev.includes(teamMemberId)) {
+				return prev.filter(id => id !== teamMemberId)
+			} else {
+				return [...prev, teamMemberId]
+			}
+		})
 	}
 
 	const handleAssign = async (shiftId: string) => {
@@ -395,9 +469,22 @@ export default function ShiftsPage() {
 
 		setAssigningShiftId(shiftId)
 		setError(null)
+		setSuccessMessage(null)
 		try {
 			const { api } = await import('../../../lib/api')
 			await api.updateShift(session.user.email, shiftId, { status: 'Assigned' })
+			
+			// Get the team member name from the shift
+			const shift = shifts.find(s => s.id === shiftId)
+			const teamMemberName = shift?.teamMemberName || 'team member'
+			
+			setSuccessMessage(`Shift has been assigned to ${teamMemberName}`)
+			
+			// Auto-hide success message after 5 seconds
+			setTimeout(() => {
+				setSuccessMessage(null)
+			}, 5000)
+			
 			fetchShifts()
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to assign shift')
@@ -438,7 +525,7 @@ export default function ShiftsPage() {
 		switch (status) {
 			case 'Planned':
 				return shift.createdAt || null
-			case 'Published':
+			case 'Sent':
 				return shift.publishedAt || null
 			case 'Assigned':
 				return shift.assignedAt || null
@@ -495,6 +582,12 @@ export default function ShiftsPage() {
 					</div>
 				)}
 
+				{successMessage && (
+					<div className="mb-6 rounded-lg bg-green-50 border border-green-200 p-4">
+						<p className="text-sm text-green-600">{successMessage}</p>
+					</div>
+				)}
+
 				{loading ? (
 					<div className="flex items-center justify-center h-64">
 						<div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
@@ -529,7 +622,7 @@ export default function ShiftsPage() {
 										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Details</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Location</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Publish/Assign</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Send To/Assign</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
 									</tr>
 								</thead>
@@ -546,13 +639,25 @@ export default function ShiftsPage() {
 												)}
 											</td>
 											<td className="px-6 py-4">
-												<div className="text-sm font-medium text-gray-900">{shift.clientName}</div>
+												<div className="text-sm font-bold text-blue-700">{shift.clientName}</div>
 												{shift.clientContactPerson && (
 													<div className="text-xs text-gray-500">Contact: {shift.clientContactPerson}</div>
 												)}
 											</td>
-											<td className="px-6 py-4 whitespace-nowrap">
-												<div className="text-sm text-gray-900">{shift.teamMemberName || '-'}</div>
+											<td className="px-6 py-4">
+												{shift.teamMemberNames && shift.teamMemberNames.length > 0 ? (
+													<div className="text-sm text-gray-900">
+														{shift.teamMemberNames.map((name, index) => (
+															<div key={index} className="mb-1 last:mb-0">
+																{name}
+															</div>
+														))}
+													</div>
+												) : shift.teamMemberName ? (
+													<div className="text-sm text-gray-900">{shift.teamMemberName}</div>
+												) : (
+													<div className="text-sm text-gray-500">-</div>
+												)}
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap">
 												<div className="text-sm text-gray-600">{shift.serviceType || '-'}</div>
@@ -570,7 +675,7 @@ export default function ShiftsPage() {
 														<span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
 															shift.status === 'Planned'
 																? 'bg-gray-100 text-gray-800'
-																: shift.status === 'Published'
+																: shift.status === 'Sent'
 																? 'bg-blue-100 text-blue-800'
 																: shift.status === 'Assigned'
 																? 'bg-purple-100 text-purple-800'
@@ -601,7 +706,7 @@ export default function ShiftsPage() {
 																if (formatted) {
 																	return (
 																		<div className="text-xs text-gray-500 mt-1">
-																			Updated at: {formatted}
+																			at: {formatted}
 																		</div>
 																	)
 																}
@@ -622,7 +727,7 @@ export default function ShiftsPage() {
 															<svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
 															</svg>
-															{publishingShiftId === shift.id ? 'Publishing...' : 'Publish'}
+															{publishingShiftId === shift.id ? 'Sending...' : 'Send To'}
 														</button>
 													)}
 													{!shift.archived && shift.status === 'Planned' && shift.teamMemberId && (
@@ -634,7 +739,7 @@ export default function ShiftsPage() {
 															<svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
 															</svg>
-															{assigningShiftId === shift.id ? 'Assigning...' : 'Assign'}
+															{assigningShiftId === shift.id ? 'Assigning...' : 'Assign Shift'}
 														</button>
 													)}
 												</div>
@@ -654,18 +759,20 @@ export default function ShiftsPage() {
 													{openDropdownId === shift.id && (
 														<div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
 															<div className="py-1">
-																<button
-																	onClick={() => {
-																		openEditModal(shift)
-																		setOpenDropdownId(null)
-																	}}
-																	className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center"
-																>
-																	<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																		<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-																	</svg>
-																	Edit
-																</button>
+																{shift.status === 'Planned' && (
+																	<button
+																		onClick={() => {
+																			openEditModal(shift)
+																			setOpenDropdownId(null)
+																		}}
+																		className="w-full text-left px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 flex items-center"
+																	>
+																		<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																			<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+																		</svg>
+																		Edit
+																	</button>
+																)}
 																{!shift.archived && (
 																	<button
 																		onClick={() => {
@@ -716,7 +823,7 @@ export default function ShiftsPage() {
 							<div className="p-6">
 								<div className="mb-6">
 									<h2 className="text-2xl font-bold text-gray-900">
-										{editingShift ? 'Edit Shift' : 'Add Shift'}
+										{editingShift ? 'Edit Shift' : 'Add a Planning Shift'}
 									</h2>
 								</div>
 
@@ -837,28 +944,23 @@ export default function ShiftsPage() {
 									</div>
 
 									<div>
-										<label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-2">
-											Status
+										<label htmlFor="teamMemberId" className="block text-sm font-medium text-gray-700 mb-2">
+											Assign Team Member
 										</label>
 										<select
-											id="status"
+											id="teamMemberId"
 											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-											{...register('status')}
+											{...register('teamMemberId')}
 										>
-											<option value="Planned">Planned</option>
-											<option value="Published">Published</option>
-											<option value="Assigned">Assigned</option>
-											<option value="Confirmed">Confirmed</option>
-											<option value="Declined">Declined</option>
-											<option value="In Progress">In Progress</option>
-											<option value="Completed">Completed</option>
-											<option value="Missed">Missed</option>
-											<option value="Canceled">Canceled</option>
-											<option value="Timesheet Submitted">Timesheet Submitted</option>
-											<option value="Approved">Approved</option>
+											<option value="">Select a team member</option>
+											{teamMembers.map((member) => (
+												<option key={member.id} value={member.id}>
+													{member.name}
+												</option>
+											))}
 										</select>
-										{errors.status && (
-											<p className="mt-1 text-sm text-red-600">{errors.status.message}</p>
+										{errors.teamMemberId && (
+											<p className="mt-1 text-sm text-red-600">{errors.teamMemberId.message}</p>
 										)}
 									</div>
 
@@ -891,7 +993,7 @@ export default function ShiftsPage() {
 											disabled={isSubmitting}
 											className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 										>
-											{isSubmitting ? 'Saving...' : editingShift ? 'Update' : 'Add Shift'}
+											{isSubmitting ? 'Saving...' : editingShift ? 'Update' : 'Add a Planning Shift'}
 										</button>
 									</div>
 								</form>
@@ -1122,6 +1224,77 @@ export default function ShiftsPage() {
 										</button>
 									</div>
 								</form>
+							</div>
+						</div>
+					</div>
+				)}
+
+				{/* Send To Modal */}
+				{isSendToModalOpen && (
+					<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+						<div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+							<div className="p-6">
+								<div className="mb-6">
+									<h2 className="text-2xl font-bold text-gray-900">Send To Team Member</h2>
+									<p className="text-sm text-gray-600 mt-1">Select one or more team members to send this shift to</p>
+								</div>
+
+								<div className="mb-6">
+									<label className="block text-sm font-medium text-gray-700 mb-3">
+										Select Team Member(s) *
+									</label>
+									<div className="border border-gray-300 rounded-lg max-h-60 overflow-y-auto p-2">
+										{teamMembers.length === 0 ? (
+											<p className="text-sm text-gray-500 p-4 text-center">No team members available</p>
+										) : (
+											teamMembers.map((member) => (
+												<label
+													key={member.id}
+													className="flex items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer"
+												>
+													<input
+														type="checkbox"
+														checked={selectedTeamMemberIds.includes(member.id)}
+														onChange={() => handleTeamMemberToggle(member.id)}
+														className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+													/>
+													<span className="ml-3 text-sm text-gray-900">{member.name}</span>
+												</label>
+											))
+										)}
+									</div>
+									{selectedTeamMemberIds.length > 0 && (
+										<p className="mt-2 text-xs text-gray-500">
+											{selectedTeamMemberIds.length} team member(s) selected
+										</p>
+									)}
+									{error && selectedTeamMemberIds.length === 0 && error.includes('team member') && (
+										<p className="mt-1 text-sm text-red-600">{error}</p>
+									)}
+								</div>
+
+								<div className="flex items-center justify-between pt-4">
+									<button
+										type="button"
+										onClick={() => {
+											setIsSendToModalOpen(false)
+											setSendingToShiftId(null)
+											setSelectedTeamMemberIds([])
+											setError(null)
+										}}
+										className="px-6 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+									>
+										Cancel
+									</button>
+									<button
+										type="button"
+										onClick={handleConfirmSendTo}
+										disabled={publishingShiftId === sendingToShiftId || selectedTeamMemberIds.length === 0}
+										className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+									>
+										{publishingShiftId === sendingToShiftId ? 'Sending...' : 'Send'}
+									</button>
+								</div>
 							</div>
 						</div>
 					</div>

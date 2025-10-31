@@ -39,6 +39,12 @@ export class TeamController {
 		return this.teamService.updateTeamMember(email, id, dto)
 	}
 
+	@Delete('members/:id/permanent')
+	async permanentlyDeleteTeamMember(@Req() req: Request, @Param('id') id: string) {
+		const email = this.getEmailFromRequest(req)
+		return this.teamService.permanentlyDeleteTeamMember(email, id)
+	}
+
 	@Delete('members/:id')
 	async deleteTeamMember(@Req() req: Request, @Param('id') id: string) {
 		const email = this.getEmailFromRequest(req)

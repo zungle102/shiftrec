@@ -19,16 +19,22 @@ export class ShiftService {
 		).toArray()
 
 		return Promise.all(shifts.map(async shift => {
-			let teamMemberName = ''
-			if (shift.teamMemberId) {
-				const teamMember = await db.collection('teamMembers').findOne({
-					_id: new ObjectId(shift.teamMemberId),
+			// Support both single teamMemberId and array teamMemberIds
+			const teamMemberIds = shift.teamMemberIds || (shift.teamMemberId ? [shift.teamMemberId] : [])
+			
+			// Fetch all team member names
+			const teamMemberNames: string[] = []
+			if (teamMemberIds.length > 0) {
+				const teamMembers = await db.collection('teamMembers').find({
+					_id: { $in: teamMemberIds.map((id: string) => new ObjectId(id)) },
 					ownerEmail
-				})
-				if (teamMember) {
-					teamMemberName = teamMember.name
-				}
+				}).toArray()
+				teamMemberNames.push(...teamMembers.map(tm => tm.name))
 			}
+			
+			// For backward compatibility, keep single teamMemberId and teamMemberName
+			const teamMemberId = teamMemberIds.length > 0 ? teamMemberIds[0] : ''
+			const teamMemberName = teamMemberNames.length > 0 ? teamMemberNames[0] : ''
 
 			return {
 				id: shift._id.toString(),
@@ -44,8 +50,10 @@ export class ShiftService {
 				clientPhoneNumber: shift.clientPhoneNumber || '',
 				clientContactPerson: shift.clientContactPerson || '',
 				clientContactPhone: shift.clientContactPhone || '',
-				teamMemberId: shift.teamMemberId || '',
+				teamMemberId: teamMemberId,
 				teamMemberName: teamMemberName,
+				teamMemberIds: teamMemberIds,
+				teamMemberNames: teamMemberNames,
 				status: shift.status || 'Planned',
 				note: shift.note || '',
 				archived: shift.archived || false,
@@ -77,16 +85,22 @@ export class ShiftService {
 			throw new NotFoundException('Shift not found')
 		}
 
-		let teamMemberName = ''
-		if (shift.teamMemberId) {
-			const teamMember = await db.collection('teamMembers').findOne({
-				_id: new ObjectId(shift.teamMemberId),
+		// Support both single teamMemberId and array teamMemberIds
+		const teamMemberIds = shift.teamMemberIds || (shift.teamMemberId ? [shift.teamMemberId] : [])
+		
+		// Fetch all team member names
+		const teamMemberNames: string[] = []
+		if (teamMemberIds.length > 0) {
+			const teamMembers = await db.collection('teamMembers').find({
+				_id: { $in: teamMemberIds.map((id: string) => new ObjectId(id)) },
 				ownerEmail
-			})
-			if (teamMember) {
-				teamMemberName = teamMember.name
-			}
+			}).toArray()
+			teamMemberNames.push(...teamMembers.map(tm => tm.name))
 		}
+		
+		// For backward compatibility, keep single teamMemberId and teamMemberName
+		const teamMemberId = teamMemberIds.length > 0 ? teamMemberIds[0] : ''
+		const teamMemberName = teamMemberNames.length > 0 ? teamMemberNames[0] : ''
 
 		return {
 			id: shift._id.toString(),
@@ -102,8 +116,10 @@ export class ShiftService {
 			clientPhoneNumber: shift.clientPhoneNumber || '',
 			clientContactPerson: shift.clientContactPerson || '',
 			clientContactPhone: shift.clientContactPhone || '',
-			teamMemberId: shift.teamMemberId || '',
+			teamMemberId: teamMemberId,
 			teamMemberName: teamMemberName,
+			teamMemberIds: teamMemberIds,
+			teamMemberNames: teamMemberNames,
 			note: shift.note || '',
 			archived: shift.archived || false,
 			archivedAt: shift.archivedAt || null,
@@ -142,25 +158,32 @@ export class ShiftService {
 			clientContactPerson,
 			clientContactPhone,
 			teamMemberId,
+			teamMemberIds,
+			status,
 			note
 		} = parsed.data
 
 		const db = await this.databaseService.getDb()
 
-		let teamMemberName = ''
-		if (teamMemberId) {
-			const teamMember = await db.collection('teamMembers').findOne({
-				_id: new ObjectId(teamMemberId),
+		// Use teamMemberIds if provided, otherwise use teamMemberId for backward compatibility
+		const finalTeamMemberIds = teamMemberIds || (teamMemberId ? [teamMemberId] : [])
+		
+		// Fetch team member names
+		const teamMemberNames: string[] = []
+		if (finalTeamMemberIds.length > 0) {
+			const teamMembers = await db.collection('teamMembers').find({
+				_id: { $in: finalTeamMemberIds.map((id: string) => new ObjectId(id)) },
 				ownerEmail
-			})
-			if (teamMember) {
-				teamMemberName = teamMember.name
-			}
+			}).toArray()
+			teamMemberNames.push(...teamMembers.map(tm => tm.name))
 		}
+		
+		const singleTeamMemberId = finalTeamMemberIds.length > 0 ? finalTeamMemberIds[0] : ''
+		const teamMemberName = teamMemberNames.length > 0 ? teamMemberNames[0] : ''
 
 		const now = new Date()
-		// Automatically set status to "Assigned" if team member is provided
-		const finalStatus = teamMemberId ? 'Assigned' : (status || 'Planned')
+		// Use provided status, or auto-set to "Assigned" if team member is provided, otherwise "Planned"
+		const finalStatus = status || (finalTeamMemberIds.length > 0 ? 'Assigned' : 'Planned')
 		const result = await db.collection('shifts').insertOne({
 			ownerEmail,
 			serviceDate,
@@ -175,7 +198,8 @@ export class ShiftService {
 			clientPhoneNumber: clientPhoneNumber || null,
 			clientContactPerson: clientContactPerson || null,
 			clientContactPhone: clientContactPhone || null,
-			teamMemberId: teamMemberId || null,
+			teamMemberId: singleTeamMemberId || null,
+			teamMemberIds: finalTeamMemberIds.length > 0 ? finalTeamMemberIds : null,
 			status: finalStatus,
 			note: note || null,
 			archived: false,
@@ -197,8 +221,10 @@ export class ShiftService {
 			clientPhoneNumber: clientPhoneNumber || '',
 			clientContactPerson: clientContactPerson || '',
 			clientContactPhone: clientContactPhone || '',
-			teamMemberId: teamMemberId || '',
+			teamMemberId: singleTeamMemberId,
 			teamMemberName: teamMemberName,
+			teamMemberIds: finalTeamMemberIds,
+			teamMemberNames: teamMemberNames,
 			status: finalStatus,
 			note: note || ''
 		}
@@ -224,6 +250,7 @@ export class ShiftService {
 			clientContactPerson,
 			clientContactPhone,
 			teamMemberId,
+			teamMemberIds,
 			status,
 			note
 		} = parsed.data
@@ -244,19 +271,20 @@ export class ShiftService {
 			updatedAt: new Date()
 		}
 
-		let teamMemberName = existing.teamMemberName || ''
-		if (teamMemberId !== undefined) {
+		// Handle teamMemberIds array (takes priority over single teamMemberId)
+		if (teamMemberIds !== undefined) {
+			updateData.teamMemberIds = teamMemberIds.length > 0 ? teamMemberIds : null
+			// Also set teamMemberId for backward compatibility (first one)
+			updateData.teamMemberId = teamMemberIds.length > 0 ? teamMemberIds[0] : null
+		} else if (teamMemberId !== undefined) {
+			// Handle single teamMemberId for backward compatibility
 			updateData.teamMemberId = teamMemberId || null
 			if (teamMemberId) {
-				const teamMember = await db.collection('teamMembers').findOne({
-					_id: new ObjectId(teamMemberId),
-					ownerEmail
-				})
-				if (teamMember) {
-					teamMemberName = teamMember.name
-				}
+				// Convert single ID to array for consistency
+				const existingTeamMemberIds = existing.teamMemberIds || (existing.teamMemberId ? [existing.teamMemberId] : [])
+				updateData.teamMemberIds = [...new Set([...existingTeamMemberIds, teamMemberId])]
 			} else {
-				teamMemberName = ''
+				updateData.teamMemberIds = null
 			}
 		}
 
@@ -288,7 +316,7 @@ export class ShiftService {
 			const now = new Date()
 			// Track timestamps when status changes to each value
 			if (status !== existing.status) {
-				if (status === 'Published') {
+				if (status === 'Sent') {
 					updateData.publishedAt = now
 				} else if (status === 'Assigned') {
 					updateData.assignedAt = now
@@ -318,6 +346,24 @@ export class ShiftService {
 			{ $set: updateData }
 		)
 
+		// Get final team member IDs and names
+		const finalTeamMemberIds = updateData.teamMemberIds !== undefined 
+			? (updateData.teamMemberIds || [])
+			: (existing.teamMemberIds || (existing.teamMemberId ? [existing.teamMemberId] : []))
+		
+		// Fetch all team member names
+		const teamMemberNames: string[] = []
+		if (finalTeamMemberIds.length > 0) {
+			const teamMembers = await db.collection('teamMembers').find({
+				_id: { $in: finalTeamMemberIds.map((id: string) => new ObjectId(id)) },
+				ownerEmail
+			}).toArray()
+			teamMemberNames.push(...teamMembers.map(tm => tm.name))
+		}
+		
+		const singleTeamMemberId = finalTeamMemberIds.length > 0 ? finalTeamMemberIds[0] : ''
+		const teamMemberName = teamMemberNames.length > 0 ? teamMemberNames[0] : ''
+
 		// Determine final status - if team member was assigned, use "Assigned", otherwise use provided status or existing status
 		const finalStatus = (teamMemberId && !status && teamMemberId) ? 'Assigned' : (status !== undefined ? status : existing.status || 'Planned')
 		
@@ -335,8 +381,10 @@ export class ShiftService {
 			clientPhoneNumber: updateData.clientPhoneNumber !== undefined ? (updateData.clientPhoneNumber || '') : (existing.clientPhoneNumber || ''),
 			clientContactPerson: updateData.clientContactPerson !== undefined ? (updateData.clientContactPerson || '') : (existing.clientContactPerson || ''),
 			clientContactPhone: updateData.clientContactPhone !== undefined ? (updateData.clientContactPhone || '') : (existing.clientContactPhone || ''),
-			teamMemberId: updateData.teamMemberId !== undefined ? (updateData.teamMemberId || '') : (existing.teamMemberId || ''),
+			teamMemberId: singleTeamMemberId,
 			teamMemberName: teamMemberName,
+			teamMemberIds: finalTeamMemberIds,
+			teamMemberNames: teamMemberNames,
 			status: updateData.status !== undefined ? updateData.status : finalStatus,
 			note: updateData.note !== undefined ? (updateData.note || '') : (existing.note || ''),
 			publishedAt: updateData.publishedAt !== undefined ? (updateData.publishedAt instanceof Date ? updateData.publishedAt.toISOString() : updateData.publishedAt) : (existing.publishedAt ? (existing.publishedAt instanceof Date ? existing.publishedAt.toISOString() : existing.publishedAt) : null),
@@ -379,6 +427,36 @@ export class ShiftService {
 		}
 
 		return { success: true, archived: false }
+	}
+
+	async permanentlyDeleteShift(ownerEmail: string, shiftId: string) {
+		const db = await this.databaseService.getDb()
+		
+		// First check if shift exists and is archived
+		const shift = await db.collection('shifts').findOne({
+			_id: new ObjectId(shiftId),
+			ownerEmail
+		})
+
+		if (!shift) {
+			throw new NotFoundException('Shift not found')
+		}
+
+		if (!shift.archived) {
+			throw new BadRequestException('Only archived shifts can be permanently deleted')
+		}
+
+		// Permanently delete the shift
+		const result = await db.collection('shifts').deleteOne({
+			_id: new ObjectId(shiftId),
+			ownerEmail
+		})
+
+		if (result.deletedCount === 0) {
+			throw new NotFoundException('Shift not found')
+		}
+
+		return { success: true, deleted: true }
 	}
 }
 

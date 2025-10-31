@@ -54,6 +54,9 @@ export default function ArchivedDataPage() {
 	const [restoringClientId, setRestoringClientId] = useState<string | null>(null)
 	const [restoringMemberId, setRestoringMemberId] = useState<string | null>(null)
 	const [restoringShiftId, setRestoringShiftId] = useState<string | null>(null)
+	const [deletingClientId, setDeletingClientId] = useState<string | null>(null)
+	const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null)
+	const [deletingShiftId, setDeletingShiftId] = useState<string | null>(null)
 
 	useEffect(() => {
 		if (!session) {
@@ -137,6 +140,66 @@ export default function ArchivedDataPage() {
 		}
 	}
 
+	const handlePermanentlyDeleteClient = async (clientId: string) => {
+		if (!session?.user?.email) return
+
+		if (!confirm('Are you sure you want to permanently delete this client? This action cannot be undone.')) {
+			return
+		}
+
+		setDeletingClientId(clientId)
+		setError(null)
+		try {
+			const { api } = await import('../../../lib/api')
+			await api.permanentlyDeleteClient(session.user.email, clientId)
+			fetchArchivedData()
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to delete client')
+		} finally {
+			setDeletingClientId(null)
+		}
+	}
+
+	const handlePermanentlyDeleteTeamMember = async (memberId: string) => {
+		if (!session?.user?.email) return
+
+		if (!confirm('Are you sure you want to permanently delete this team member? This action cannot be undone.')) {
+			return
+		}
+
+		setDeletingMemberId(memberId)
+		setError(null)
+		try {
+			const { api } = await import('../../../lib/api')
+			await api.permanentlyDeleteTeamMember(session.user.email, memberId)
+			fetchArchivedData()
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to delete team member')
+		} finally {
+			setDeletingMemberId(null)
+		}
+	}
+
+	const handlePermanentlyDeleteShift = async (shiftId: string) => {
+		if (!session?.user?.email) return
+
+		if (!confirm('Are you sure you want to permanently delete this shift? This action cannot be undone.')) {
+			return
+		}
+
+		setDeletingShiftId(shiftId)
+		setError(null)
+		try {
+			const { api } = await import('../../../lib/api')
+			await api.permanentlyDeleteShift(session.user.email, shiftId)
+			fetchArchivedData()
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to delete shift')
+		} finally {
+			setDeletingShiftId(null)
+		}
+	}
+
 	const formatDate = (dateString: string) => {
 		try {
 			const date = new Date(dateString)
@@ -211,16 +274,28 @@ export default function ArchivedDataPage() {
 														</span>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
-														<button
-															onClick={() => handleRestoreClient(client.id)}
-															disabled={restoringClientId === client.id}
-															className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-														>
-															<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-															</svg>
-															{restoringClientId === client.id ? 'Restoring...' : 'Restore'}
-														</button>
+														<div className="flex items-center gap-2">
+															<button
+																onClick={() => handleRestoreClient(client.id)}
+																disabled={restoringClientId === client.id || deletingClientId === client.id}
+																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+															>
+																<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+																</svg>
+																{restoringClientId === client.id ? 'Restoring...' : 'Restore'}
+															</button>
+															<button
+																onClick={() => handlePermanentlyDeleteClient(client.id)}
+																disabled={restoringClientId === client.id || deletingClientId === client.id}
+																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+															>
+																<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+																</svg>
+																{deletingClientId === client.id ? 'Deleting...' : 'Delete'}
+															</button>
+														</div>
 													</td>
 												</tr>
 											))}
@@ -267,16 +342,28 @@ export default function ArchivedDataPage() {
 														</span>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
-														<button
-															onClick={() => handleRestoreTeamMember(member.id)}
-															disabled={restoringMemberId === member.id}
-															className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-														>
-															<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-															</svg>
-															{restoringMemberId === member.id ? 'Restoring...' : 'Restore'}
-														</button>
+														<div className="flex items-center gap-2">
+															<button
+																onClick={() => handleRestoreTeamMember(member.id)}
+																disabled={restoringMemberId === member.id || deletingMemberId === member.id}
+																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+															>
+																<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+																</svg>
+																{restoringMemberId === member.id ? 'Restoring...' : 'Restore'}
+															</button>
+															<button
+																onClick={() => handlePermanentlyDeleteTeamMember(member.id)}
+																disabled={restoringMemberId === member.id || deletingMemberId === member.id}
+																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+															>
+																<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+																</svg>
+																{deletingMemberId === member.id ? 'Deleting...' : 'Delete'}
+															</button>
+														</div>
 													</td>
 												</tr>
 											))}
@@ -327,16 +414,28 @@ export default function ArchivedDataPage() {
 														</span>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
-														<button
-															onClick={() => handleRestoreShift(shift.id)}
-															disabled={restoringShiftId === shift.id}
-															className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-														>
-															<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-															</svg>
-															{restoringShiftId === shift.id ? 'Restoring...' : 'Restore'}
-														</button>
+														<div className="flex items-center gap-2">
+															<button
+																onClick={() => handleRestoreShift(shift.id)}
+																disabled={restoringShiftId === shift.id || deletingShiftId === shift.id}
+																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+															>
+																<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+																</svg>
+																{restoringShiftId === shift.id ? 'Restoring...' : 'Restore'}
+															</button>
+															<button
+																onClick={() => handlePermanentlyDeleteShift(shift.id)}
+																disabled={restoringShiftId === shift.id || deletingShiftId === shift.id}
+																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+															>
+																<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+																</svg>
+																{deletingShiftId === shift.id ? 'Deleting...' : 'Delete'}
+															</button>
+														</div>
 													</td>
 												</tr>
 											))}

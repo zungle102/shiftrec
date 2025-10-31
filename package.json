@@ -17,7 +17,8 @@
     "db:index": "cd apps/web && node scripts/create-indexes.js",
     "db:seed": "cd apps/web && node scripts/seed.js",
     "db:list": "cd apps/web && node scripts/list-seed-data.js",
-    "db:set-planned": "cd apps/web && node scripts/set-all-shifts-planned.js"
+    "db:set-planned": "cd apps/web && node scripts/set-all-shifts-planned.js",
+    "db:delete-shifts": "cd apps/web && node scripts/delete-all-shifts.js"
   },
   "devDependencies": {
     "concurrently": "^9.0.1",

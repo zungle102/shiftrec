@@ -176,6 +176,8 @@ export const api = {
 			clientContactPhone: string
 			teamMemberId: string
 			teamMemberName: string
+			teamMemberIds?: string[]
+			teamMemberNames?: string[]
 			status: string
 			note: string
 			archived: boolean
@@ -237,6 +239,7 @@ export const api = {
 		clientContactPerson?: string
 		clientContactPhone?: string
 		teamMemberId?: string
+		teamMemberIds?: string[]
 		status?: string
 		note?: string
 	}) =>
@@ -256,6 +259,8 @@ export const api = {
 			clientContactPhone: string
 			teamMemberId: string
 			teamMemberName: string
+			teamMemberIds?: string[]
+			teamMemberNames?: string[]
 			note: string
 		}>(`/shift/shifts/${shiftId}`, {
 			method: 'PATCH',
@@ -273,6 +278,14 @@ export const api = {
 			archived: boolean
 		}>(`/shift/shifts/${shiftId}/restore`, {
 			method: 'PATCH'
+		}, userEmail),
+
+	permanentlyDeleteShift: (userEmail: string, shiftId: string) =>
+		apiRequest<{
+			success: boolean
+			deleted: boolean
+		}>(`/shift/shifts/${shiftId}/permanent`, {
+			method: 'DELETE'
 		}, userEmail),
 
 	// Clients
@@ -381,6 +394,22 @@ export const api = {
 			archived: boolean
 		}>(`/client/clients/${clientId}/restore`, {
 			method: 'PATCH'
+		}, userEmail),
+
+	permanentlyDeleteClient: (userEmail: string, clientId: string) =>
+		apiRequest<{
+			success: boolean
+			deleted: boolean
+		}>(`/client/clients/${clientId}/permanent`, {
+			method: 'DELETE'
+		}, userEmail),
+
+	permanentlyDeleteTeamMember: (userEmail: string, memberId: string) =>
+		apiRequest<{
+			success: boolean
+			deleted: boolean
+		}>(`/team/members/${memberId}/permanent`, {
+			method: 'DELETE'
 		}, userEmail)
 }
 

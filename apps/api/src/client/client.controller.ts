@@ -37,6 +37,14 @@ export class ClientController {
 		return await this.clientService.updateClient(ownerEmail, clientId, dto)
 	}
 
+	@Delete('clients/:id/permanent')
+	async permanentlyDeleteClient(@Headers('x-user-email') ownerEmail: string, @Param('id') clientId: string) {
+		if (!ownerEmail) {
+			return { error: 'Unauthorized' }
+		}
+		return await this.clientService.permanentlyDeleteClient(ownerEmail, clientId)
+	}
+
 	@Delete('clients/:id')
 	async deleteClient(@Headers('x-user-email') ownerEmail: string, @Param('id') clientId: string) {
 		if (!ownerEmail) {

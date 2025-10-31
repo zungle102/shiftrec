@@ -266,5 +266,35 @@ export class ClientService {
 			active: newActiveStatus
 		}
 	}
+
+	async permanentlyDeleteClient(ownerEmail: string, clientId: string) {
+		const db = await this.databaseService.getDb()
+		
+		// First check if client exists and is archived
+		const client = await db.collection('clients').findOne({
+			_id: new ObjectId(clientId),
+			ownerEmail
+		})
+
+		if (!client) {
+			throw new NotFoundException('Client not found')
+		}
+
+		if (!client.archived) {
+			throw new BadRequestException('Only archived clients can be permanently deleted')
+		}
+
+		// Permanently delete the client
+		const result = await db.collection('clients').deleteOne({
+			_id: new ObjectId(clientId),
+			ownerEmail
+		})
+
+		if (result.deletedCount === 0) {
+			throw new NotFoundException('Client not found')
+		}
+
+		return { success: true, deleted: true }
+	}
 }
 
