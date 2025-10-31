@@ -2,8 +2,8 @@
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useState } from 'react'
-import { signIn } from 'next-auth/react'
+import { useState, useEffect } from 'react'
+import { signIn, useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 const schema = z.object({
@@ -16,9 +16,31 @@ type FormValues = z.infer<typeof schema>
 export default function SigninPage() {
 	const router = useRouter()
 	const search = useSearchParams()
+	const { data: session, status } = useSession()
 	const callbackUrl = search.get('callbackUrl') || '/'
 	const [error, setError] = useState<string | null>(null)
 	const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({ resolver: zodResolver(schema) })
+
+	// Redirect to homepage if already signed in
+	useEffect(() => {
+		if (status === 'authenticated' && session) {
+			router.push('/')
+		}
+	}, [status, session, router])
+
+	// Show loading state while checking session
+	if (status === 'loading') {
+		return (
+			<main className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
+				<div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+			</main>
+		)
+	}
+
+	// Don't render sign-in form if already authenticated (redirect will happen)
+	if (status === 'authenticated') {
+		return null
+	}
 
 	const onSubmit = async (values: FormValues) => {
 		setError(null)

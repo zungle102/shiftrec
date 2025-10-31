@@ -12,7 +12,7 @@ export function Navbar() {
 					<Link 
 						href="/" 
 						className="flex items-center space-x-2 group"
-						title="ShiftRec - Smoothly Recording and Managing Workshifts"
+						title="ShiftRec - Recording and Managing Workshifts Smoothly"
 					>
 						<div className="flex items-center justify-center w-10 h-10 rounded-lg bg-blue-600 group-hover:bg-blue-700 transition-colors">
 							<svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -22,7 +22,7 @@ export function Navbar() {
 						<div className="flex flex-col">
 							<span className="text-xl font-bold text-gray-900">ShiftRec</span>
 							<span className="hidden lg:block text-xs text-gray-500 leading-tight">
-								Smoothly Recording and Managing Workshifts
+								Recording and Managing Workshifts Smoothly
 							</span>
 						</div>
 					</Link>
@@ -48,7 +48,10 @@ export function Navbar() {
 									Dashboard
 								</Link>
 								<div className="flex items-center space-x-3 ml-4 pl-4 border-l border-gray-200">
-									<div className="flex items-center space-x-2">
+									<Link 
+										href="/dashboard/profile" 
+										className="flex items-center space-x-2 hover:opacity-80 transition-opacity"
+									>
 										<div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
 											<span className="text-sm font-semibold text-blue-600">
 												{session.user?.email?.charAt(0).toUpperCase() || 'U'}
@@ -57,9 +60,9 @@ export function Navbar() {
 										<span className="hidden lg:block text-sm font-medium text-gray-700">
 											{session.user?.name || session.user?.email?.split('@')[0]}
 										</span>
-									</div>
+									</Link>
 									<button 
-										onClick={() => signOut()} 
+										onClick={() => signOut({ callbackUrl: '/' })} 
 										className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
 									>
 										Sign out
@@ -97,7 +100,7 @@ export function Navbar() {
 									Dashboard
 								</Link>
 								<button 
-									onClick={() => signOut()} 
+									onClick={() => signOut({ callbackUrl: '/' })} 
 									className="px-3 py-1.5 text-sm font-medium text-white bg-gray-900 hover:bg-gray-800 rounded-lg transition-colors"
 								>
 									Sign out

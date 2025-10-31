@@ -146,6 +146,56 @@ export default function Home() {
 				</div>
 			</section>
 
+			{/* Our Customers Section */}
+			<section className="bg-white py-16 px-4 border-b">
+				<div className="max-w-6xl mx-auto">
+					<div className="text-center mb-12">
+						<h2 className="text-4xl font-bold text-gray-900 mb-4">Trusted by Leading Businesses</h2>
+						<p className="text-xl text-gray-600">Join thousands of companies that trust ShiftRec for their shift management</p>
+					</div>
+					<div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-8 items-center justify-items-center opacity-60 hover:opacity-100 transition-opacity">
+						<div className="flex items-center justify-center h-16 w-full">
+							<div className="text-gray-400 font-semibold text-lg">Retail</div>
+						</div>
+						<div className="flex items-center justify-center h-16 w-full">
+							<div className="text-gray-400 font-semibold text-lg">Healthcare</div>
+						</div>
+						<div className="flex items-center justify-center h-16 w-full">
+							<div className="text-gray-400 font-semibold text-lg">Hospitality</div>
+						</div>
+						<div className="flex items-center justify-center h-16 w-full">
+							<div className="text-gray-400 font-semibold text-lg">Manufacturing</div>
+						</div>
+						<div className="flex items-center justify-center h-16 w-full">
+							<div className="text-gray-400 font-semibold text-lg">Education</div>
+						</div>
+						<div className="flex items-center justify-center h-16 w-full">
+							<div className="text-gray-400 font-semibold text-lg">Logistics</div>
+						</div>
+					</div>
+					<div className="mt-12 text-center">
+						<div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+							<div>
+								<div className="text-3xl font-bold text-blue-600 mb-2">3,000+</div>
+								<div className="text-sm text-gray-600">Active Customers</div>
+							</div>
+							<div>
+								<div className="text-3xl font-bold text-blue-600 mb-2">50,000+</div>
+								<div className="text-sm text-gray-600">Employees Managed</div>
+							</div>
+							<div>
+								<div className="text-3xl font-bold text-blue-600 mb-2">500K+</div>
+								<div className="text-sm text-gray-600">Shifts Monthly</div>
+							</div>
+							<div>
+								<div className="text-3xl font-bold text-blue-600 mb-2">98%</div>
+								<div className="text-sm text-gray-600">Customer Satisfaction</div>
+							</div>
+						</div>
+					</div>
+				</div>
+			</section>
+
 			{/* Testimonials Section */}
 			<section className="bg-white py-20 px-4">
 				<div className="max-w-6xl mx-auto">

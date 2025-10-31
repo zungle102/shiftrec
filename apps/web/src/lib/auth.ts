@@ -1,5 +1,5 @@
 import { MongoDBAdapter } from '@next-auth/mongodb-adapter'
-import NextAuth, { type NextAuthOptions } from 'next-auth'
+import NextAuth, { type NextAuthOptions, getServerSession } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import Google from 'next-auth/providers/google'
 import GitHub from 'next-auth/providers/github'
@@ -50,10 +50,13 @@ export const authOptions: NextAuthOptions = {
 	}
 }
 
-// Initialize NextAuth
-const nextAuthInstance = NextAuth(authOptions)
+// Initialize NextAuth for route handlers
+const handler = NextAuth(authOptions)
 
-// Export auth for server components
-export const auth = nextAuthInstance.auth
+// Export auth function for server components using getServerSession
+export const auth = async () => {
+	return await getServerSession(authOptions)
+}
+
 export { authOptions }
 
