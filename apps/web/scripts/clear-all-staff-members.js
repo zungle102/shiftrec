@@ -14,23 +14,23 @@ async function clearAllStaffMembers() {
 		await client.connect()
 		const db = client.db()
 		
-		console.log('\n🔄 Clearing all confirmed and notified staff members from shifts...\n')
+		console.log('\n🔄 Clearing all assigned and notified staff members from shifts...\n')
 		
-		// Update all shifts to clear both confirmed and notified staff members
+		// Update all shifts to clear both assigned and notified staff members
 		const result = await db.collection('shifts').updateMany(
 			{},
 			{
+				$set: {
+					assignedStaffMemberId: null,
+					notifiedStaffMemberIds: [],
+					updatedAt: new Date()
+				},
 				$unset: {
-					confirmedStaffMemberId: '',
 					confirmedTeamMemberId: '', // Also clear old field name for backward compatibility
 					staffMemberId: '', // Also clear old field name for backward compatibility
 					teamMemberId: '', // Also clear old field name for backward compatibility
-					notifiedStaffMemberIds: '',
 					notifiedTeamMemberIds: '', // Also clear old field name for backward compatibility
 					teamMemberIds: '' // Also clear old field name for backward compatibility
-				},
-				$set: {
-					updatedAt: new Date()
 				}
 			}
 		)
@@ -39,9 +39,9 @@ async function clearAllStaffMembers() {
 		console.log(`   Total shifts found: ${result.matchedCount}`)
 		
 		// Verify the update
-		const shiftsWithConfirmed = await db.collection('shifts').countDocuments({
+		const shiftsWithAssigned = await db.collection('shifts').countDocuments({
 			$or: [
-				{ confirmedStaffMemberId: { $exists: true } },
+				{ assignedStaffMemberId: { $exists: true, $ne: null } },
 				{ confirmedTeamMemberId: { $exists: true } },
 				{ staffMemberId: { $exists: true } },
 				{ teamMemberId: { $exists: true } }
@@ -50,16 +50,22 @@ async function clearAllStaffMembers() {
 		
 		const shiftsWithNotified = await db.collection('shifts').countDocuments({
 			$or: [
-				{ notifiedStaffMemberIds: { $exists: true, $ne: [] } },
+				{ notifiedStaffMemberIds: { $exists: true, $not: { $eq: [] } } },
 				{ notifiedTeamMemberIds: { $exists: true, $ne: [] } },
 				{ teamMemberIds: { $exists: true, $ne: [] } }
 			]
 		})
 		
+		const shiftsWithEmptyNotified = await db.collection('shifts').countDocuments({
+			notifiedStaffMemberIds: []
+		})
+		
 		console.log(`\n📊 Verification:`)
-		console.log(`   Shifts with confirmed staff members: ${shiftsWithConfirmed}`)
+		console.log(`   Shifts with assigned staff members: ${shiftsWithAssigned}`)
 		console.log(`   Shifts with notified staff members: ${shiftsWithNotified}`)
-		console.log(`   ${result.matchedCount - shiftsWithConfirmed - shiftsWithNotified} shift(s) have all staff members cleared`)
+		console.log(`   Shifts with empty notified array: ${shiftsWithEmptyNotified}`)
+		console.log(`   ${result.matchedCount - shiftsWithAssigned} shift(s) have no assigned staff member`)
+		console.log(`   ${shiftsWithEmptyNotified} shift(s) have empty notified staff members array`)
 		
 	} catch (error) {
 		console.error('❌ Error clearing staff members:', error)

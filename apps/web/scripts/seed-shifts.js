@@ -177,24 +177,68 @@ async function seedShifts() {
 			}
 			
 			// Select random team member or leave empty
-			let teamMemberId = null
-			let teamMemberIds = []
+			let assignedTeamMemberId = null
+			let notifiedTeamMemberIds = []
 			
-			if (teamMembers.length > 0 && Math.random() > 0.3) { // 70% chance of assignment
-				if (Math.random() > 0.7 && teamMembers.length > 1) { // 30% chance of multiple assignments
-					// Multiple team members
-					const numAssignments = Math.min(Math.floor(Math.random() * 3) + 1, teamMembers.length)
+			// Statuses that MUST have assigned staff member
+			const statusesRequiringAssignment = ['Assigned', 'Declined', 'Confirmed', 'In Progress', 'Completed', 'Missed', 'Canceled', 'Timesheet Approved', 'Timesheet Submitted']
+			
+			if (teamMembers.length > 0) {
+				if (status === 'Pending') {
+					// For Pending status: Only notify staff members, do not assign
+					const numNotifications = Math.min(Math.floor(Math.random() * 3) + 1, teamMembers.length)
 					const selectedMembers = []
 					const availableMembers = [...teamMembers]
-					for (let j = 0; j < numAssignments; j++) {
+					for (let j = 0; j < numNotifications; j++) {
 						const randomIndex = Math.floor(Math.random() * availableMembers.length)
 						selectedMembers.push(availableMembers.splice(randomIndex, 1)[0])
 					}
-					teamMemberIds = selectedMembers.map(m => m._id.toString())
+					notifiedTeamMemberIds = selectedMembers.map(m => m._id.toString())
+				} else if (status === 'Drafted') {
+					// For Drafted status: Must NOT have assigned staff member and no notified staff members
+					assignedTeamMemberId = null
+					// Explicitly keep notifiedTeamMemberIds empty for Drafted status
+					notifiedTeamMemberIds = []
+				} else if (statusesRequiringAssignment.includes(status)) {
+					// For statuses that require assignment: MUST have assigned staff member
+					if (Math.random() > 0.7 && teamMembers.length > 1) { // 30% chance of multiple assignments
+						// Multiple team members - assign one and notify multiple
+						const numAssignments = Math.min(Math.floor(Math.random() * 3) + 1, teamMembers.length)
+						const selectedMembers = []
+						const availableMembers = [...teamMembers]
+						for (let j = 0; j < numAssignments; j++) {
+							const randomIndex = Math.floor(Math.random() * availableMembers.length)
+							selectedMembers.push(availableMembers.splice(randomIndex, 1)[0])
+						}
+						assignedTeamMemberId = selectedMembers[0]._id.toString()
+						notifiedTeamMemberIds = selectedMembers.map(m => m._id.toString())
+					} else {
+						// Single team member - assign and notify same person
+						const teamMember = getRandomElement(teamMembers)
+						assignedTeamMemberId = teamMember._id.toString()
+						notifiedTeamMemberIds = [teamMember._id.toString()]
+					}
 				} else {
-					// Single team member
-					const teamMember = getRandomElement(teamMembers)
-					teamMemberId = teamMember._id.toString()
+					// For other statuses: Can have both assigned and notified
+					if (Math.random() > 0.3) { // 70% chance of assignment
+						if (Math.random() > 0.7 && teamMembers.length > 1) { // 30% chance of multiple assignments
+							// Multiple team members - assign one and notify multiple
+							const numAssignments = Math.min(Math.floor(Math.random() * 3) + 1, teamMembers.length)
+							const selectedMembers = []
+							const availableMembers = [...teamMembers]
+							for (let j = 0; j < numAssignments; j++) {
+								const randomIndex = Math.floor(Math.random() * availableMembers.length)
+								selectedMembers.push(availableMembers.splice(randomIndex, 1)[0])
+							}
+							assignedTeamMemberId = selectedMembers[0]._id.toString()
+							notifiedTeamMemberIds = selectedMembers.map(m => m._id.toString())
+						} else {
+							// Single team member - assign and notify same person
+							const teamMember = getRandomElement(teamMembers)
+							assignedTeamMemberId = teamMember._id.toString()
+							notifiedTeamMemberIds = [teamMember._id.toString()]
+						}
+					}
 				}
 			}
 			
@@ -206,7 +250,7 @@ async function seedShifts() {
 			// Set timestamps based on status
 			const publishedAt = ['Pending', 'Assigned', 'Confirmed', 'Declined', 'Canceled', 'In Progress', 'Completed', 'Missed', 'Timesheet Submitted', 'Timesheet Approved'].includes(status) 
 				? getStatusTimestamp(serviceDate, 'Pending') : null
-			const assignedAt = ['Assigned', 'Confirmed', 'Declined', 'In Progress', 'Completed', 'Missed', 'Timesheet Submitted', 'Timesheet Approved'].includes(status) && teamMemberId
+			const assignedAt = ['Assigned', 'Confirmed', 'Declined', 'In Progress', 'Completed', 'Missed', 'Timesheet Submitted', 'Timesheet Approved'].includes(status) && assignedTeamMemberId
 				? getStatusTimestamp(serviceDate, 'Assigned') : null
 			const confirmedAt = ['Confirmed', 'In Progress', 'Completed', 'Missed', 'Timesheet Submitted', 'Timesheet Approved'].includes(status)
 				? getStatusTimestamp(serviceDate, 'Confirmed') : null
@@ -221,9 +265,10 @@ async function seedShifts() {
 				? getStatusTimestamp(serviceDate, 'Timesheet Submitted') : null
 			const approvedAt = status === 'Timesheet Approved' ? getStatusTimestamp(serviceDate, 'Timesheet Approved') : null
 			
-			// Clear notifiedTeamMemberIds if status is Drafted
-			const notifiedTeamMemberIdsArray = status === 'Drafted' ? [] : (teamMemberId || teamMemberIds.length > 0 ? [teamMemberId || teamMemberIds[0]] : [])
-			
+			// Rules:
+			// - Drafted status: Must NOT have assigned staff member and NO notified staff members
+			// - Pending status: Only notified staff members, NO assigned staff member
+			// - Other statuses: Can have both assigned and notified staff members
 			const shift = {
 				ownerEmail: userEmail,
 				serviceDate: formattedDate,
@@ -237,8 +282,12 @@ async function seedShifts() {
 				createdAt: now,
 				updatedAt: now,
 				...(client ? { clientId: client._id } : {}), // Store only clientId reference (required)
-				...(teamMemberId ? { confirmedStaffMemberId: new ObjectId(teamMemberId) } : {}),
-				...(notifiedTeamMemberIdsArray.length > 0 ? { notifiedStaffMemberIds: notifiedTeamMemberIdsArray.map(id => new ObjectId(id)) } : {}),
+				// For Drafted status: Do NOT set assignedStaffMemberId (must be null)
+				// For Pending status: Do not set assignedStaffMemberId (only notified staff members)
+				// For other statuses: Set assignedStaffMemberId if assignedTeamMemberId exists
+				...(status !== 'Drafted' && status !== 'Pending' && assignedTeamMemberId ? { assignedStaffMemberId: new ObjectId(assignedTeamMemberId) } : {}),
+				// Only set notifiedStaffMemberIds if status is NOT Drafted
+				...(status !== 'Drafted' && notifiedTeamMemberIds.length > 0 ? { notifiedStaffMemberIds: notifiedTeamMemberIds.map(id => new ObjectId(id)) } : {}),
 				...(publishedAt ? { publishedAt: publishedAt } : {}),
 				...(assignedAt ? { assignedAt: assignedAt } : {}),
 				...(confirmedAt ? { confirmedAt: confirmedAt } : {}),

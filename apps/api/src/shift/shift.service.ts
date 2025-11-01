@@ -153,18 +153,18 @@ export class ShiftService {
 
 		// Now map shifts using the pre-fetched data
 		return shifts.map(shift => {
-			// Handle confirmedStaffMemberId (the assigned/confirmed staff member)
-			let confirmedStaffMemberId: string = ''
-			let confirmedStaffMemberName: string = ''
-			if (shift.confirmedStaffMemberId) {
-				const confirmedId = shift.confirmedStaffMemberId instanceof ObjectId 
-					? shift.confirmedStaffMemberId.toString() 
-					: String(shift.confirmedStaffMemberId)
+			// Handle assignedStaffMemberId (the assigned/confirmed staff member)
+			let assignedStaffMemberId: string = ''
+			let assignedStaffMemberName: string = ''
+			if (shift.assignedStaffMemberId) {
+				const confirmedId = shift.assignedStaffMemberId instanceof ObjectId 
+					? shift.assignedStaffMemberId.toString() 
+					: String(shift.assignedStaffMemberId)
 				if (confirmedId && confirmedId !== 'null' && confirmedId !== 'undefined') {
-					confirmedStaffMemberId = confirmedId
+					assignedStaffMemberId = confirmedId
 					const member = staffMemberMap.get(confirmedId)
 					if (member) {
-						confirmedStaffMemberName = member.name
+						assignedStaffMemberName = member.name
 					}
 				}
 			}
@@ -190,9 +190,9 @@ export class ShiftService {
 				}
 			}
 			
-			// Use confirmedStaffMemberId if available, otherwise fall back to first notified member (for backward compatibility)
-			const staffMemberId = confirmedStaffMemberId || (notifiedStaffMemberIds.length > 0 ? notifiedStaffMemberIds[0] : '')
-			const staffMemberName = confirmedStaffMemberName || (staffMemberNames.length > 0 ? staffMemberNames[0] : '')
+		// Use assignedStaffMemberId only (no fallback to notified members)
+		const staffMemberId = assignedStaffMemberId
+		const staffMemberName = assignedStaffMemberName
 
 			// Populate client data from pre-fetched map
 			let clientName = shift.clientName || ''
@@ -276,21 +276,21 @@ export class ShiftService {
 			throw new NotFoundException('Shift not found')
 		}
 
-		// Handle confirmedStaffMemberId (the assigned/confirmed staff member)
-		let confirmedStaffMemberId: string = ''
-		let confirmedStaffMemberName: string = ''
-		if (shift.confirmedStaffMemberId) {
-			const confirmedId = shift.confirmedStaffMemberId instanceof ObjectId 
-				? shift.confirmedStaffMemberId.toString() 
-				: String(shift.confirmedStaffMemberId)
+		// Handle assignedStaffMemberId (the assigned/confirmed staff member)
+		let assignedStaffMemberId: string = ''
+		let assignedStaffMemberName: string = ''
+		if (shift.assignedStaffMemberId) {
+			const confirmedId = shift.assignedStaffMemberId instanceof ObjectId 
+				? shift.assignedStaffMemberId.toString() 
+				: String(shift.assignedStaffMemberId)
 			if (confirmedId && confirmedId !== 'null' && confirmedId !== 'undefined') {
-				confirmedStaffMemberId = confirmedId
+				assignedStaffMemberId = confirmedId
 				const member = await db.collection('staffMembers').findOne({
 					_id: new ObjectId(confirmedId),
 					ownerEmail
 				})
 				if (member) {
-					confirmedStaffMemberName = member.name
+					assignedStaffMemberName = member.name
 				}
 			}
 		}
@@ -316,9 +316,9 @@ export class ShiftService {
 			staffMemberNames.push(...staffMembers.map(tm => tm.name))
 		}
 		
-		// Use confirmedStaffMemberId if available, otherwise fall back to first notified member (for backward compatibility)
-		const staffMemberId = confirmedStaffMemberId || (notifiedStaffMemberIds.length > 0 ? notifiedStaffMemberIds[0] : '')
-		const staffMemberName = confirmedStaffMemberName || (staffMemberNames.length > 0 ? staffMemberNames[0] : '')
+		// Use assignedStaffMemberId only (no fallback to notified members)
+		const staffMemberId = assignedStaffMemberId
+		const staffMemberName = assignedStaffMemberName
 
 		// Populate client data from clientId reference (preferred) or use denormalized data (backward compatibility)
 		let clientName = shift.clientName || ''
@@ -507,7 +507,7 @@ export class ShiftService {
 			breakDuration: breakDuration || '0',
 			serviceType: serviceType || null,
 			clientId: finalClientId, // Store only the ObjectId reference
-			confirmedStaffMemberId: singleStaffMemberId ? new ObjectId(singleStaffMemberId) : null,
+			assignedStaffMemberId: singleStaffMemberId ? new ObjectId(singleStaffMemberId) : null,
 			notifiedStaffMemberIds: finalStaffMemberIds.length > 0 
 				? finalStaffMemberIds.map((id: string) => new ObjectId(id))
 				: null,
@@ -680,23 +680,19 @@ export class ShiftService {
 			updateData.notifiedStaffMemberIds = legacyNotifiedStaffMemberIds.length > 0 
 				? legacyNotifiedStaffMemberIds.map((id: string) => new ObjectId(id))
 				: null
-			// Also set confirmedStaffMemberId as ObjectId reference
-			updateData.confirmedStaffMemberId = legacyNotifiedStaffMemberIds.length > 0 ? new ObjectId(legacyNotifiedStaffMemberIds[0]) : null
+			// Do NOT update assignedStaffMemberId when only notifiedStaffMemberIds is provided
+			// assignedStaffMemberId should only be updated when staffMemberId is explicitly provided
 		} else if (legacyStaffMemberId !== undefined) {
 			// Handle single staffMemberId - store as ObjectId reference
 			if (legacyStaffMemberId && legacyStaffMemberId.trim() !== '') {
 				try {
-					updateData.confirmedStaffMemberId = new ObjectId(legacyStaffMemberId)
-					// Convert single ID to array for consistency
-					const existingNotifiedStaffMemberIds = existing.notifiedStaffMemberIds || existing.notifiedTeamMemberIds || existing.teamMemberIds || (existing.teamMemberId || existing.confirmedStaffMemberId ? [existing.teamMemberId || existing.confirmedStaffMemberId] : [])
-					const allIds = [...new Set([...existingNotifiedStaffMemberIds.map((id: any) => id instanceof ObjectId ? id.toString() : String(id)), legacyStaffMemberId])]
-					updateData.notifiedStaffMemberIds = allIds.map((id: string) => new ObjectId(id))
+					updateData.assignedStaffMemberId = new ObjectId(legacyStaffMemberId)
+					// Do NOT automatically add assigned staff member to notifiedStaffMemberIds
 				} catch {
 					throw new BadRequestException(`Invalid staff member ID: ${legacyStaffMemberId}`)
 				}
 			} else {
-				updateData.confirmedStaffMemberId = null
-				updateData.notifiedStaffMemberIds = null
+				updateData.assignedStaffMemberId = null
 			}
 		}
 
@@ -708,11 +704,11 @@ export class ShiftService {
 		// Client fields are no longer in DTO - they are populated from clientId reference
 		// Note: staffMemberId handling is done above with notifiedStaffMemberIds logic
 		// This block is kept for backward compatibility but should not execute if notifiedStaffMemberIds was handled
-		if (legacyStaffMemberId !== undefined && updateData.confirmedStaffMemberId === undefined) {
+		if (legacyStaffMemberId !== undefined && updateData.assignedStaffMemberId === undefined) {
 			// Store as ObjectId reference
 			if (legacyStaffMemberId && legacyStaffMemberId.trim() !== '') {
 				try {
-					updateData.confirmedStaffMemberId = new ObjectId(legacyStaffMemberId)
+					updateData.assignedStaffMemberId = new ObjectId(legacyStaffMemberId)
 					// Automatically set status to "Assigned" if staff member is assigned
 					if (status === undefined) {
 						updateData.status = 'Assigned'
@@ -725,7 +721,7 @@ export class ShiftService {
 					throw new BadRequestException(`Invalid staff member ID: ${legacyStaffMemberId}`)
 				}
 			} else {
-				updateData.confirmedStaffMemberId = null
+				updateData.assignedStaffMemberId = null
 			}
 		}
 		if (status !== undefined) {

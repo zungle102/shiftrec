@@ -5,7 +5,7 @@
 ### 1. **Shifts Collection - Major Improvements** ✅
 - ✅ **Added `clientId` reference** - Shifts now properly reference clients collection
 - ✅ **Removed denormalized client fields** - Client data is fetched dynamically from `clients` collection
-- ✅ **Renamed `teamMemberId` to `confirmedStaffMemberId`** - Clearer naming
+- ✅ **Renamed `teamMemberId` to `assignedStaffMemberId`** - Clearer naming
 - ✅ **Consistent `notifiedStaffMemberIds`** - Array of ObjectId references
 - ✅ **Batch fetching implemented** - Fixed N+1 query problem
 - ✅ **Pagination added** - Support for page/limit parameters
@@ -48,7 +48,7 @@
   _id: ObjectId,
   ownerEmail: String,              // ✅ Multi-tenancy
   clientId: ObjectId,              // ✅ Reference to clients (FIXED!)
-  confirmedStaffMemberId: ObjectId?, // ✅ Single confirmed staff member
+  assignedStaffMemberId: ObjectId?, // ✅ Single confirmed staff member
   notifiedStaffMemberIds: [ObjectId], // ✅ Array of notified members
   serviceDate: String,             // ⚠️ Still String (consider Date)
   startTime: String,
@@ -98,8 +98,8 @@
 - **Current approach works** but could be more scalable
 - **Recommendation:** Keep current approach unless you need detailed audit trail
 
-**3. Missing Field: Index on `confirmedStaffMemberId`** (Priority: LOW)
-- Index exists on `staffMemberId` but not on `confirmedStaffMemberId`
+**3. Missing Field: Index on `assignedStaffMemberId`** (Priority: LOW)
+- Index exists on `staffMemberId` but not on `assignedStaffMemberId`
 - If you frequently query by confirmed staff member, add this index
 
 ---
@@ -262,16 +262,16 @@
 ## 🚨 **Issues Identified**
 
 ### **1. Index Naming Inconsistency** ⚠️ **MINOR**
-- Index created on `shifts.staffMemberId` but field is `confirmedStaffMemberId`
-- **Impact:** LOW - Index may not be used if querying by `confirmedStaffMemberId`
-- **Fix:** Update `create-indexes.js` to index `confirmedStaffMemberId` instead
+- Index created on `shifts.staffMemberId` but field is `assignedStaffMemberId`
+- **Impact:** LOW - Index may not be used if querying by `assignedStaffMemberId`
+- **Fix:** Update `create-indexes.js` to index `assignedStaffMemberId` instead
 
 ```javascript
 // Current (incorrect field name)
 await shiftsCollection.createIndex({ ownerEmail: 1, staffMemberId: 1 })
 
 // Should be:
-await shiftsCollection.createIndex({ ownerEmail: 1, confirmedStaffMemberId: 1 })
+await shiftsCollection.createIndex({ ownerEmail: 1, assignedStaffMemberId: 1 })
 ```
 
 ---
@@ -307,7 +307,7 @@ All previously identified critical issues have been resolved! 🎉
 ### **MEDIUM PRIORITY:**
 
 1. **Fix Index Name** (5 minutes)
-   - Update `create-indexes.js` to index `confirmedStaffMemberId` instead of `staffMemberId`
+   - Update `create-indexes.js` to index `assignedStaffMemberId` instead of `staffMemberId`
 
 2. **Consider Date Type for `serviceDate`** (If needed)
    - Evaluate if date range queries are needed
@@ -355,7 +355,7 @@ Your data model is now in **excellent shape** for production use:
 - ✅ Naming standardized to "Staff Members"
 
 ### **Remaining Minor Items:**
-- ⚠️ Index field name mismatch (`staffMemberId` vs `confirmedStaffMemberId`)
+- ⚠️ Index field name mismatch (`staffMemberId` vs `assignedStaffMemberId`)
 - 💡 Consider pagination for other endpoints as data grows
 - 💡 Optional: Convert `serviceDate` to Date type (if date queries needed)
 
@@ -367,7 +367,7 @@ Your data model is now in **excellent shape** for production use:
 ## 📝 **Action Items Checklist**
 
 ### **Immediate (This Week):**
-- [ ] Fix index name: Update `create-indexes.js` to use `confirmedStaffMemberId`
+- [ ] Fix index name: Update `create-indexes.js` to use `assignedStaffMemberId`
 
 ### **Short-term (This Month):**
 - [ ] Add pagination to `getStaffMembers()` endpoint

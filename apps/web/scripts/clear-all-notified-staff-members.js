@@ -16,17 +16,17 @@ async function clearAllNotifiedStaffMembers() {
 		
 		console.log('\n🔄 Clearing all notified staff members from shifts...\n')
 		
-		// Update all shifts to clear notifiedStaffMemberIds
+		// Update all shifts to clear notifiedStaffMemberIds (set to empty array)
 		const result = await db.collection('shifts').updateMany(
 			{},
 			{
+				$set: {
+					notifiedStaffMemberIds: [],
+					updatedAt: new Date()
+				},
 				$unset: {
-					notifiedStaffMemberIds: '',
 					notifiedTeamMemberIds: '', // Also clear old field name for backward compatibility
 					teamMemberIds: '' // Also clear old field name for backward compatibility
-				},
-				$set: {
-					updatedAt: new Date()
 				}
 			}
 		)
@@ -37,13 +37,17 @@ async function clearAllNotifiedStaffMembers() {
 		// Verify the update
 		const shiftsWithNotified = await db.collection('shifts').countDocuments({
 			$or: [
-				{ notifiedStaffMemberIds: { $exists: true, $ne: [] } },
+				{ notifiedStaffMemberIds: { $exists: true, $not: { $eq: [] } } },
 				{ notifiedTeamMemberIds: { $exists: true, $ne: [] } },
 				{ teamMemberIds: { $exists: true, $ne: [] } }
 			]
 		})
-		console.log(`\n📊 Verification: ${shiftsWithNotified} shift(s) still have notified staff members`)
-		console.log(`   ${result.matchedCount - shiftsWithNotified} shift(s) have cleared notified staff members`)
+		const shiftsWithEmptyArray = await db.collection('shifts').countDocuments({
+			notifiedStaffMemberIds: []
+		})
+		console.log(`\n📊 Verification:`)
+		console.log(`   ${shiftsWithEmptyArray} shift(s) have empty notified staff members array`)
+		console.log(`   ${shiftsWithNotified} shift(s) still have notified staff members`)
 		
 	} catch (error) {
 		console.error('❌ Error clearing notified staff members:', error)

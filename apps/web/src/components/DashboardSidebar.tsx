@@ -40,6 +40,15 @@ const navigation = [
 		)
 	},
 	{
+		name: 'Calendar View',
+		href: '/dashboard/calendar',
+		icon: (
+			<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+			</svg>
+		)
+	},
+	{
 		name: 'Time Tracking',
 		href: '/dashboard/time-tracking',
 		icon: (
@@ -81,12 +90,29 @@ const navigation = [
 export function DashboardSidebar() {
 	const pathname = usePathname()
 
+	// Find the most specific matching route (calculate once)
+	const matchingRoutes = navigation.filter(navItem => {
+		if (navItem.href === '/dashboard') {
+			return pathname === '/dashboard'
+		}
+		return pathname?.startsWith(navItem.href) || pathname === navItem.href
+	})
+	
+	// Find the longest matching route (most specific)
+	const mostSpecificRoute = matchingRoutes.length > 0
+		? matchingRoutes.reduce((longest, current) => {
+			return current.href.length > longest.href.length ? current : longest
+		})
+		: null
+
 	return (
 		<aside className="w-64 bg-white border-r-4 border-blue-300 min-h-screen flex-shrink-0 shadow-xl">
 			<div className="p-4">
 				<nav className="space-y-1">
 					{navigation.map((item) => {
-						const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href))
+						// Only highlight if this item is the most specific match
+						const isActive = mostSpecificRoute?.href === item.href
+						
 						return (
 							<div key={item.name}>
 								{item.name === 'Time Tracking' && (

@@ -91,6 +91,8 @@ export default function ShiftsPage() {
 	const [isSendToModalOpen, setIsSendToModalOpen] = useState(false)
 	const [sendingToShiftId, setSendingToShiftId] = useState<string | null>(null)
 	const [selectedStaffMemberIds, setSelectedStaffMemberIds] = useState<string[]>([])
+	const [isAssignModalOpen, setIsAssignModalOpen] = useState(false)
+	const [selectedAssignStaffMemberId, setSelectedAssignStaffMemberId] = useState<string>('')
 	const [editingShift, setEditingShift] = useState<Shift | null>(null)
 	const [deletingShiftId, setDeletingShiftId] = useState<string | null>(null)
 	const [restoringShiftId, setRestoringShiftId] = useState<string | null>(null)
@@ -100,6 +102,7 @@ export default function ShiftsPage() {
 	const [selectedClientId, setSelectedClientId] = useState<string>('')
 	const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
 	const [statusFilters, setStatusFilters] = useState<string[]>(['All'])
+	const [lastClickedShiftId, setLastClickedShiftId] = useState<string | null>(null)
 
 	const { register, handleSubmit, formState: { errors, isSubmitting }, reset, setValue } = useForm<ShiftFormValues>({
 		resolver: zodResolver(shiftSchema),
@@ -263,6 +266,9 @@ export default function ShiftsPage() {
 	}
 
 	const openEditModal = (shift: Shift) => {
+		// Track this action for highlighting
+		setLastClickedShiftId(shift.id)
+
 		setEditingShift(shift)
 		
 		// Find the client that matches the shift's client name
@@ -340,12 +346,16 @@ export default function ShiftsPage() {
 		try {
 		const { api } = await import('../../../lib/api')
 		
+		// Remove staffMemberId from form values - assignment should be done via "Assign Shift" button, not in Edit Shift
+		const { staffMemberId, ...formValuesWithoutStaffMember } = values
+		
 		if (editingShift) {
 			// Ensure edited shifts are updated with "Drafted" status
-			await api.updateShift(session.user.email, editingShift.id, { ...values, status: 'Drafted' })
+			// Do not update staffMemberId in Edit Shift - it should be changed via "Assign Shift" button
+			await api.updateShift(session.user.email, editingShift.id, { ...formValuesWithoutStaffMember, status: 'Drafted' })
 		} else {
 			// Ensure new shifts are created with "Drafted" status
-			await api.createShift(session.user.email, { ...values, status: 'Drafted' })
+			await api.createShift(session.user.email, { ...formValuesWithoutStaffMember, status: 'Drafted' })
 		}
 
 			closeModal()
@@ -364,6 +374,9 @@ export default function ShiftsPage() {
 		if (!session?.user?.email) return
 		if (!confirm('Are you sure you want to archive this shift?')) return
 
+		// Track this action for highlighting
+		setLastClickedShiftId(shiftId)
+
 		setDeletingShiftId(shiftId)
 		try {
 			const { api } = await import('../../../lib/api')
@@ -378,6 +391,9 @@ export default function ShiftsPage() {
 
 	const handleRestore = async (shiftId: string) => {
 		if (!session?.user?.email) return
+
+		// Track this action for highlighting
+		setLastClickedShiftId(shiftId)
 
 		setRestoringShiftId(shiftId)
 		setError(null)
@@ -395,11 +411,16 @@ export default function ShiftsPage() {
 	const handlePublish = async (shiftId: string) => {
 		if (!session?.user?.email) return
 
-		// Get the shift to load current notified staff members
+		// Track this action for highlighting
+		setLastClickedShiftId(shiftId)
+
+		// Get the shift to pre-select current notified staff members
 		const shift = shifts.find(s => s.id === shiftId)
 		if (shift) {
-			// Load current notified staff members
-			const currentNotifiedIds = shift.notifiedStaffMemberIds || []
+			// Pre-select current notified staff members
+			const currentNotifiedIds = (shift.notifiedStaffMemberIds || [])
+				.map(id => String(id))
+				.filter(id => id && id.length > 0 && id !== 'null' && id !== 'undefined')
 			setSelectedStaffMemberIds(currentNotifiedIds)
 		} else {
 			setSelectedStaffMemberIds([])
@@ -414,7 +435,7 @@ export default function ShiftsPage() {
 		if (!session?.user?.email || !sendingToShiftId) return
 
 		if (selectedStaffMemberIds.length === 0) {
-			setError('Please select at least one team member')
+			setError('Please select at least one staff member')
 			return
 		}
 
@@ -424,7 +445,7 @@ export default function ShiftsPage() {
 		try {
 			const { api } = await import('../../../lib/api')
 			
-			// Get the shift to check existing team members
+			// Get the shift to check existing notified staff members
 			const shift = shifts.find(s => s.id === sendingToShiftId)
 			if (!shift) {
 				setError('Shift not found')
@@ -432,27 +453,21 @@ export default function ShiftsPage() {
 				return
 			}
 
-			// Combine existing team member IDs with newly selected ones (avoid duplicates)
-			// This ensures all notified team members (existing + newly selected) are preserved
+			// Use the selected staff member IDs (user can add/remove from the list)
 			// Ensure all IDs are strings for validation
-			const existingStaffMemberIds = (shift.notifiedStaffMemberIds || (shift.staffMemberId ? [shift.staffMemberId] : []))
-				.map(id => String(id)) // Convert to strings to ensure validation passes
-				.filter(id => id && id.length > 0 && id !== 'null' && id !== 'undefined') // Filter out empty or invalid IDs
+			const finalStaffMemberIds = selectedStaffMemberIds
+				.map(id => String(id))
+				.filter(id => id && id.length > 0 && id !== 'null' && id !== 'undefined')
 			
-			const combinedStaffMemberIds = [...new Set([...existingStaffMemberIds, ...selectedStaffMemberIds])]
-				.filter(id => id && id.length > 0 && id !== 'null' && id !== 'undefined') // Ensure all IDs are valid strings
-			
-			// Update the shift with all team member IDs
-			// The backend will populate staffMemberNames when we fetch shifts, 
-			// which will be displayed in the "Notified Team Members" column
-			// Always include notifiedStaffMemberIds, even if empty (backend will handle it)
+			// Update the shift with selected staff member IDs
+			// Only update notifiedStaffMemberIds, do NOT update assignedStaffMemberId (Team Member field)
 			const updatePayload = { 
 				status: 'Pending' as const,
-				notifiedStaffMemberIds: combinedStaffMemberIds
+				notifiedStaffMemberIds: finalStaffMemberIds
 			}
 			
 			console.log('Updating shift with payload:', JSON.stringify(updatePayload, null, 2))
-			console.log('Combined staff member IDs:', combinedStaffMemberIds)
+			console.log('Final staff member IDs:', finalStaffMemberIds)
 			
 			await api.updateShift(session.user.email, sendingToShiftId, updatePayload)
 			
@@ -461,26 +476,27 @@ export default function ShiftsPage() {
 				.map(id => staffMembers.find(m => m.id === id)?.name)
 				.filter(Boolean)
 			
+			let namesText = ''
 			if (staffMemberNames.length > 0) {
-				const namesText = staffMemberNames.length === 1 
+				namesText = staffMemberNames.length === 1 
 					? staffMemberNames[0]
 					: staffMemberNames.length === 2
 					? `${staffMemberNames[0]} and ${staffMemberNames[1]}`
 					: `${staffMemberNames.slice(0, -1).join(', ')}, and ${staffMemberNames[staffMemberNames.length - 1]}`
-				
-				setSuccessMessage(`Shift has been notified to ${namesText}`)
 			}
-			
-			// Auto-hide success message after 5 seconds
-			setTimeout(() => {
-				setSuccessMessage(null)
-			}, 5000)
 			
 			// Close modal and reset state
 			setIsSendToModalOpen(false)
 			setSendingToShiftId(null)
 			setSelectedStaffMemberIds([])
 			setError(null)
+			
+			// Show success modal and auto-hide after 2 seconds
+			setSuccessMessage(`Shift has been notified to ${namesText}`)
+			setTimeout(() => {
+				setSuccessMessage(null)
+			}, 2000)
+			
 			fetchShifts()
 		} catch (err: any) {
 			// Extract error message from API response
@@ -504,55 +520,87 @@ export default function ShiftsPage() {
 		})
 	}
 
-	const handleAssign = async (shiftId: string) => {
-		if (!session?.user?.email) return
+	const handleAssign = (shiftId: string) => {
+		// Track this action for highlighting
+		setLastClickedShiftId(shiftId)
 
+		// Open the Assign modal
+		const shift = shifts.find(s => s.id === shiftId)
+		if (shift) {
+			// Pre-select current assigned staff member if any
+			setSelectedAssignStaffMemberId(shift.staffMemberId || '')
+		} else {
+			setSelectedAssignStaffMemberId('')
+		}
+		
 		setAssigningShiftId(shiftId)
+		setIsAssignModalOpen(true)
+	}
+
+	const handleConfirmAssign = async () => {
+		if (!session?.user?.email || !assigningShiftId) return
+
+		if (!selectedAssignStaffMemberId || selectedAssignStaffMemberId.trim() === '') {
+			setError('Please select a staff member to assign')
+			return
+		}
+
 		setError(null)
 		setSuccessMessage(null)
 		try {
 			const { api } = await import('../../../lib/api')
-			await api.updateShift(session.user.email, shiftId, { status: 'Assigned' })
 			
-			// Get the team member name from the shift
-			const shift = shifts.find(s => s.id === shiftId)
-			const staffMemberName = shift?.staffMemberName || 'staff member'
+			// Get the staff member name for success message
+			const staffMember = staffMembers.find(m => m.id === selectedAssignStaffMemberId)
+			const staffMemberName = staffMember?.name || 'staff member'
+			
+			// Update shift with assigned staff member and set status to Assigned
+			await api.updateShift(session.user.email, assigningShiftId, { 
+				staffMemberId: selectedAssignStaffMemberId,
+				status: 'Assigned'
+			})
 			
 			setSuccessMessage(`Shift has been assigned to ${staffMemberName}`)
 			
-			// Auto-hide success message after 5 seconds
+			// Auto-hide success message after 2 seconds
 			setTimeout(() => {
 				setSuccessMessage(null)
-			}, 5000)
+			}, 2000)
+			
+			// Close modal and refresh shifts
+			setIsAssignModalOpen(false)
+			setAssigningShiftId(null)
+			setSelectedAssignStaffMemberId('')
 			
 			fetchShifts()
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to assign shift')
-		} finally {
-			setAssigningShiftId(null)
 		}
 	}
 
 	const handleUnAssign = async (shiftId: string) => {
 		if (!session?.user?.email) return
 
+		// Track this action for highlighting
+		setLastClickedShiftId(shiftId)
+
 		setUnAssigningShiftId(shiftId)
 		setError(null)
 		setSuccessMessage(null)
 		try {
 			const { api } = await import('../../../lib/api')
-			// Remove team member assignment and set status back to Pending
+			// Clear assigned staff member and set status back to Drafted
 			await api.updateShift(session.user.email, shiftId, { 
-				staffMemberId: '',
-				status: 'Pending'
+				staffMemberId: '', // Empty string will clear assignedStaffMemberId in backend
+				status: 'Drafted'
 			})
 			
 			setSuccessMessage('Shift has been un-assigned')
 			
-			// Auto-hide success message after 5 seconds
+			// Auto-hide success message after 2 seconds
 			setTimeout(() => {
 				setSuccessMessage(null)
-			}, 5000)
+			}, 2000)
 			
 			fetchShifts()
 		} catch (err) {
@@ -651,11 +699,6 @@ export default function ShiftsPage() {
 					</div>
 				)}
 
-				{successMessage && (
-					<div className="mb-6 rounded-lg bg-green-50 border border-green-200 p-4">
-						<p className="text-sm text-green-600">{successMessage}</p>
-					</div>
-				)}
 
 				{loading ? (
 					<div className="flex items-center justify-center h-64">
@@ -787,7 +830,7 @@ export default function ShiftsPage() {
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Service Date</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Time</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Client</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Staff Member</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Assigned Staff Member</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Notified Staff Members</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Service Details</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Location</th>
@@ -798,7 +841,21 @@ export default function ShiftsPage() {
 								</thead>
 								<tbody className="bg-white divide-y divide-gray-200">
 									{filteredShifts.map((shift) => (
-										<tr key={shift.id} className="hover:bg-slate-50">
+										<tr 
+											key={shift.id} 
+											className={`hover:bg-slate-50 cursor-pointer transition-all duration-200 ${
+												lastClickedShiftId === shift.id 
+													? 'bg-blue-100 border-l-4 border-blue-600 shadow-md ring-2 ring-blue-400 ring-opacity-50' 
+													: ''
+											}`}
+											onClick={(e) => {
+												// Only highlight if clicking on the row itself, not on buttons or links
+												if ((e.target as HTMLElement).tagName !== 'BUTTON' && 
+												    !(e.target as HTMLElement).closest('button')) {
+													setLastClickedShiftId(shift.id)
+												}
+											}}
+										>
 											<td className="px-6 py-4 whitespace-nowrap">
 												<div className="text-sm font-medium text-slate-900">{formatDate(shift.serviceDate)}</div>
 											</td>
@@ -902,7 +959,10 @@ export default function ShiftsPage() {
 													{!shift.archived && shift.status === 'Drafted' && (
 														<>
 															<button
-																onClick={() => handlePublish(shift.id)}
+																onClick={(e) => {
+																	e.stopPropagation()
+																	handlePublish(shift.id)
+																}}
 																disabled={publishingShiftId === shift.id}
 																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 															>
@@ -912,7 +972,10 @@ export default function ShiftsPage() {
 																{publishingShiftId === shift.id ? 'Notifying...' : 'Notify Staff'}
 															</button>
 															<button
-																onClick={() => handleAssign(shift.id)}
+																onClick={(e) => {
+																	e.stopPropagation()
+																	handleAssign(shift.id)
+																}}
 																disabled={assigningShiftId === shift.id}
 																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 															>
@@ -925,7 +988,10 @@ export default function ShiftsPage() {
 													)}
 													{!shift.archived && shift.status === 'Assigned' && (
 														<button
-															onClick={() => handleUnAssign(shift.id)}
+															onClick={(e) => {
+																e.stopPropagation()
+																handleUnAssign(shift.id)
+															}}
 															disabled={unAssigningShiftId === shift.id}
 															className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 														>
@@ -938,7 +1004,10 @@ export default function ShiftsPage() {
 													{!shift.archived && (shift.status === 'Declined' || shift.status === 'Pending') && (
 														<>
 															<button
-																onClick={() => handlePublish(shift.id)}
+																onClick={(e) => {
+																	e.stopPropagation()
+																	handlePublish(shift.id)
+																}}
 																disabled={publishingShiftId === shift.id}
 																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 															>
@@ -948,7 +1017,10 @@ export default function ShiftsPage() {
 																{publishingShiftId === shift.id ? 'Notifying...' : 'Notify Staff'}
 															</button>
 															<button
-																onClick={() => handleAssign(shift.id)}
+																onClick={(e) => {
+																	e.stopPropagation()
+																	handleAssign(shift.id)
+																}}
 																disabled={assigningShiftId === shift.id}
 																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 															>
@@ -1161,27 +1233,6 @@ export default function ShiftsPage() {
 												<p className="mt-1 text-sm text-red-600">{errors.breakDuration.message}</p>
 											)}
 										</div>
-									</div>
-
-									<div>
-										<label htmlFor="staffMemberId" className="block text-sm font-medium text-slate-700 mb-2">
-											Assign Team Member
-										</label>
-										<select
-											id="staffMemberId"
-											className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-											{...register('staffMemberId')}
-										>
-											<option value="">Select a team member</option>
-											{staffMembers.map((member) => (
-												<option key={member.id} value={member.id}>
-													{member.name}
-												</option>
-											))}
-										</select>
-										{errors.staffMemberId && (
-											<p className="mt-1 text-sm text-red-600">{errors.staffMemberId.message}</p>
-										)}
 									</div>
 
 									<div>
@@ -1456,37 +1507,40 @@ export default function ShiftsPage() {
 							<div className="p-6">
 								<div className="mb-6">
 									<h2 className="text-2xl font-bold text-slate-900">Notify Staff Member</h2>
-									<p className="text-sm text-slate-600 mt-1">View notified staff members for this shift</p>
+									<p className="text-sm text-slate-600 mt-1">Select one or more staff members to notify about this shift</p>
 								</div>
 
 								<div className="mb-6">
 									<label className="block text-sm font-medium text-slate-700 mb-3">
-										Notified Staff Members
+										Select Staff Member(s) *
 									</label>
 									<div className="border border-slate-300 rounded-lg max-h-60 overflow-y-auto p-2">
-										{selectedStaffMemberIds.length === 0 ? (
-											<p className="text-sm text-slate-500 p-4 text-center">No staff members have been notified for this shift</p>
+										{staffMembers.length === 0 ? (
+											<p className="text-sm text-slate-500 p-4 text-center">No staff members available</p>
 										) : (
-											selectedStaffMemberIds.map((memberId) => {
-												const member = staffMembers.find(m => m.id === memberId)
-												return member ? (
-													<div
-														key={member.id}
-														className="flex items-center p-3 bg-slate-50 rounded-lg"
-													>
-														<svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-															<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-														</svg>
-														<span className="ml-3 text-sm text-slate-900">{member.name}</span>
-													</div>
-												) : null
-											})
+											staffMembers.map((member) => (
+												<label
+													key={member.id}
+													className="flex items-center p-3 hover:bg-slate-50 rounded-lg cursor-pointer"
+												>
+													<input
+														type="checkbox"
+														checked={selectedStaffMemberIds.includes(member.id)}
+														onChange={() => handleStaffMemberToggle(member.id)}
+														className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
+													/>
+													<span className="ml-3 text-sm text-slate-900">{member.name}</span>
+												</label>
+											))
 										)}
 									</div>
 									{selectedStaffMemberIds.length > 0 && (
 										<p className="mt-2 text-xs text-slate-500">
-											{selectedStaffMemberIds.length} staff member(s) notified
+											{selectedStaffMemberIds.length} staff member(s) selected
 										</p>
+									)}
+									{error && selectedStaffMemberIds.length === 0 && error.includes('staff member') && (
+										<p className="mt-1 text-sm text-red-600">{error}</p>
 									)}
 								</div>
 
@@ -1503,19 +1557,111 @@ export default function ShiftsPage() {
 									>
 										Cancel
 									</button>
-									{/* Removed Notify Staff button - modal is now view-only */}
+									<button
+										type="button"
+										onClick={handleConfirmSendTo}
+										disabled={publishingShiftId === sendingToShiftId || selectedStaffMemberIds.length === 0}
+										className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+									>
+										{publishingShiftId === sendingToShiftId ? 'Notifying...' : 'Notify Staff'}
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
+
+				{/* Assign Shift Modal */}
+				{isAssignModalOpen && (
+					<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+						<div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+							<div className="p-6">
+								<div className="mb-6">
+									<h2 className="text-2xl font-bold text-slate-900">Assign Shift</h2>
+									<p className="text-sm text-slate-600 mt-1">Select a staff member to assign this shift to</p>
+								</div>
+
+								<div className="mb-6">
+									<label className="block text-sm font-medium text-slate-700 mb-3">
+										Select Staff Member *
+									</label>
+									<div className="border border-slate-300 rounded-lg max-h-60 overflow-y-auto p-2">
+										{staffMembers.length === 0 ? (
+											<p className="text-sm text-slate-500 p-4 text-center">No staff members available</p>
+										) : (
+											staffMembers.map((member) => (
+												<label
+													key={member.id}
+													className="flex items-center p-3 hover:bg-slate-50 rounded-lg cursor-pointer"
+												>
+													<input
+														type="radio"
+														name="assignStaffMember"
+														value={member.id}
+														checked={selectedAssignStaffMemberId === member.id}
+														onChange={() => setSelectedAssignStaffMemberId(member.id)}
+														className="w-4 h-4 text-purple-600 border-slate-300 focus:ring-purple-500 focus:ring-2 cursor-pointer"
+													/>
+													<span className="ml-3 text-sm text-slate-900">{member.name}</span>
+												</label>
+											))
+										)}
+									</div>
+									{error && !selectedAssignStaffMemberId && error.includes('staff member') && (
+										<p className="mt-1 text-sm text-red-600">{error}</p>
+									)}
+								</div>
+
+								<div className="flex items-center justify-between pt-4">
 									<button
 										type="button"
 										onClick={() => {
-											setIsSendToModalOpen(false)
-											setSendingToShiftId(null)
-											setSelectedStaffMemberIds([])
+											setIsAssignModalOpen(false)
+											setAssigningShiftId(null)
+											setSelectedAssignStaffMemberId('')
 											setError(null)
 										}}
-										className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors ml-auto"
+										className="px-6 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors"
 									>
-										Close
+										Cancel
 									</button>
+									<button
+										type="button"
+										onClick={handleConfirmAssign}
+										disabled={!selectedAssignStaffMemberId || assigningShiftId === null}
+										className="px-6 py-2.5 bg-purple-600 text-white font-medium rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+									>
+										Assign Shift
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				)}
+
+			{/* Success Notification Modal */}
+			{successMessage && (
+				<div className="fixed inset-0 flex items-end justify-center z-50 p-4 pb-12">
+						<div className="bg-white rounded-lg shadow-2xl max-w-sm w-full transform transition-all duration-300 scale-100 relative">
+							<button
+								onClick={() => setSuccessMessage(null)}
+								className="absolute top-2 right-2 text-slate-400 hover:text-slate-600 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-lg p-1"
+								aria-label="Close"
+							>
+								<svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+								</svg>
+							</button>
+							<div className="p-4">
+								<div className="flex items-center gap-3">
+									<div className="rounded-full bg-green-100 p-2 flex-shrink-0">
+										<svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+											<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+										</svg>
+									</div>
+									<div className="flex-1 min-w-0">
+										<p className="text-sm font-medium text-slate-900 leading-tight">{successMessage}</p>
+									</div>
 								</div>
 							</div>
 						</div>

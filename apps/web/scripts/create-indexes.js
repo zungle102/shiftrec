@@ -109,8 +109,8 @@ async function createIndexes() {
 			if (err.code !== 85) console.log('⚠ Index may already exist')
 		}
 		try {
-			await shiftsCollection.createIndex({ ownerEmail: 1, confirmedStaffMemberId: 1 })
-			console.log('✓ Created index on shifts.ownerEmail + confirmedStaffMemberId')
+			await shiftsCollection.createIndex({ ownerEmail: 1, assignedStaffMemberId: 1 })
+			console.log('✓ Created index on shifts.ownerEmail + assignedStaffMemberId')
 		} catch (err) {
 			if (err.code !== 85) console.log('⚠ Index may already exist')
 		}
