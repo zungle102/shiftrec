@@ -32,8 +32,8 @@ export default function SignupPage() {
 	// Show loading state while checking session
 	if (status === 'loading') {
 		return (
-			<main className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
-				<div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+			<main className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500">
+				<div className="w-8 h-8 border-4 border-white border-t-orange-500 animate-spin rounded-full"></div>
 			</main>
 		)
 	}
@@ -55,78 +55,78 @@ export default function SignupPage() {
 	}
 
 	return (
-		<main className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
+		<main className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-500">
 			<div className="w-full max-w-md">
-				<div className="bg-white rounded-lg shadow-lg border border-gray-200 p-8">
-					<div className="mb-8">
-						<h1 className="text-3xl font-bold text-gray-900 mb-2">Create your account</h1>
-						<p className="text-gray-600">Sign up to get started with ShiftRec</p>
+				<div className="bg-white border-4 border-blue-300 rounded-xl shadow-2xl pb-12 px-8 pt-8">
+					<div className="mb-12">
+						<h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-3">Create your account</h1>
+						<p className="text-base text-slate-700 font-medium">Sign up to get started with ShiftRec</p>
 					</div>
 
-					<form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+					<form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 						<div>
-							<label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+							<label htmlFor="name" className="block text-sm font-bold text-slate-900 mb-2">
 								Full name
 							</label>
 							<input
 								id="name"
-								className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+								className="w-full border-2 border-blue-200 px-4 py-3 text-slate-900 placeholder-slate-400 bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200 rounded-lg"
 								type="text"
 								placeholder="John Doe"
 								{...register('name')}
 							/>
 							{errors.name && (
-								<p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
+								<p className="mt-2 text-sm text-red-600 font-semibold">{errors.name.message}</p>
 							)}
 						</div>
 						<div>
-							<label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+							<label htmlFor="email" className="block text-sm font-normal text-white mb-2">
 								Email address
 							</label>
 							<input
 								id="email"
-								className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+								className="w-full border-2 border-blue-200 px-4 py-3 text-slate-900 placeholder-slate-400 bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200 rounded-lg"
 								type="email"
 								placeholder="you@example.com"
 								{...register('email')}
 							/>
 							{errors.email && (
-								<p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+								<p className="mt-2 text-sm text-red-600 font-semibold">{errors.email.message}</p>
 							)}
 						</div>
 						<div>
-							<label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
+							<label htmlFor="password" className="block text-sm font-bold text-slate-900 mb-2">
 								Password
 							</label>
 							<input
 								id="password"
-								className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+								className="w-full border-2 border-blue-200 px-4 py-3 text-slate-900 placeholder-slate-400 bg-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-300 transition-all duration-200 rounded-lg"
 								type="password"
 								placeholder="••••••••"
 								{...register('password')}
 							/>
 							{errors.password && (
-								<p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+								<p className="mt-2 text-sm text-red-600 font-semibold">{errors.password.message}</p>
 							)}
 						</div>
 						{error && (
-							<div className="rounded-lg bg-red-50 border border-red-200 p-3">
-								<p className="text-sm text-red-600">{error}</p>
+							<div className="border-2 border-red-400 bg-red-100 p-4 rounded-lg">
+								<p className="text-sm text-red-800 font-semibold">{error}</p>
 							</div>
 						)}
 						<button
 							type="submit"
 							disabled={isSubmitting}
-							className="w-full rounded-lg bg-gray-900 px-4 py-3 text-white font-medium hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+							className="w-full bg-orange-500 px-8 py-4 text-white font-bold hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200 rounded-lg shadow-lg"
 						>
 							{isSubmitting ? 'Creating account...' : 'Create account'}
 						</button>
 					</form>
 
-					<div className="mt-6 text-center">
-						<p className="text-sm text-gray-600">
+					<div className="mt-8 text-center">
+						<p className="text-sm text-slate-700 font-medium">
 							Already have an account?{' '}
-							<a href="/signin" className="font-medium text-gray-900 hover:text-gray-700">
+							<a href="/signin" className="font-bold text-blue-600 hover:text-blue-700 transition-colors">
 								Sign in
 							</a>
 						</p>

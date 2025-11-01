@@ -235,13 +235,13 @@ export default function ClientsPage() {
 	}
 
 	return (
-		<div className="flex min-h-screen bg-gray-50">
+		<div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
 			<DashboardSidebar />
-			<main className="flex-1 p-6">
-				<div className="mb-6 flex items-center justify-between">
+			<main className="flex-1 p-6 md:p-8 lg:p-12">
+				<div className="mb-12 flex items-center justify-between">
 					<div>
-						<h1 className="text-3xl font-bold text-gray-900 mb-2">Manage Clients</h1>
-						<p className="text-gray-600">Add, edit and remove clients</p>
+						<h1 className="text-3xl md:text-4xl font-light text-slate-900 mb-2">Manage Clients</h1>
+						<p className="text-base text-slate-500 font-light">Add, edit and remove clients</p>
 					</div>
 					<div className="flex items-center space-x-4">
 						<label className="flex items-center space-x-2 cursor-pointer">
@@ -249,9 +249,9 @@ export default function ClientsPage() {
 								type="checkbox"
 								checked={showInactive}
 								onChange={(e) => setShowInactive(e.target.checked)}
-								className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+								className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
 							/>
-							<span className="text-sm font-medium text-gray-700">Show Inactive</span>
+							<span className="text-sm font-medium text-slate-700">Show Inactive</span>
 						</label>
 						<button
 							onClick={openAddModal}
@@ -273,15 +273,15 @@ export default function ClientsPage() {
 
 				{loading ? (
 					<div className="flex items-center justify-center h-64">
-						<div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+						<div className="w-8 h-8 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
 					</div>
 				) : clients.length === 0 ? (
-					<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-						<svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
+						<svg className="w-16 h-16 text-slate-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
 						</svg>
-						<p className="text-gray-600 mb-2">No clients yet</p>
-						<p className="text-sm text-gray-500 mb-6">Get started by adding your first client</p>
+						<p className="text-slate-600 mb-2">No clients yet</p>
+						<p className="text-sm text-slate-500 mb-6">Get started by adding your first client</p>
 						<button
 							onClick={openAddModal}
 							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
@@ -293,38 +293,38 @@ export default function ClientsPage() {
 						</button>
 					</div>
 				) : (
-					<div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-visible pb-20">
+					<div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-visible pb-20">
 						<div className="overflow-x-auto overflow-y-visible min-h-[600px]">
 							<table className="w-full">
-								<thead className="bg-gray-50 border-b border-gray-200">
+								<thead className="bg-slate-50 border-b border-slate-200">
 									<tr>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Street Address</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contact</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Name</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Type</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Street Address</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Phone</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Contact</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
 									</tr>
 								</thead>
 								<tbody className="bg-white divide-y divide-gray-200">
 									{clients.map((client) => (
-										<tr key={client.id} className="hover:bg-gray-50">
+										<tr key={client.id} className="hover:bg-slate-50">
 											<td className="px-6 py-4 whitespace-nowrap">
-												<div className="text-sm font-medium text-gray-900">{client.name}</div>
+												<div className="text-sm font-medium text-slate-900">{client.name}</div>
 												{client.email && (
-													<div className="text-xs text-gray-500">{client.email}</div>
+													<div className="text-xs text-slate-500">{client.email}</div>
 												)}
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap">
-												<div className="text-sm text-gray-600">{client.clientType || '-'}</div>
+												<div className="text-sm text-slate-600">{client.clientType || '-'}</div>
 											</td>
 											<td className="px-6 py-4">
 												{client.address || client.suburb || client.state || client.postcode ? (
-													<div className="text-sm text-gray-600">
+													<div className="text-sm text-slate-600">
 														{client.address && <div>{client.address}</div>}
 														{(client.suburb || client.state || client.postcode) && (
-															<div className="text-xs text-gray-500">
+															<div className="text-xs text-slate-500">
 																{client.suburb && <span>{client.suburb}</span>}
 																{client.suburb && client.state && <span>, </span>}
 																{client.state && <span>{client.state}</span>}
@@ -333,24 +333,24 @@ export default function ClientsPage() {
 														)}
 													</div>
 												) : (
-													<div className="text-sm text-gray-600">-</div>
+													<div className="text-sm text-slate-600">-</div>
 												)}
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap">
-												<div className="text-sm text-gray-600">{client.phoneNumber || '-'}</div>
+												<div className="text-sm text-slate-600">{client.phoneNumber || '-'}</div>
 											</td>
 											<td className="px-6 py-4">
 												{client.contactPerson || client.contactPhone ? (
 													<div>
 														{client.contactPerson && (
-															<div className="text-sm text-gray-900">{client.contactPerson}</div>
+															<div className="text-sm text-slate-900">{client.contactPerson}</div>
 														)}
 														{client.contactPhone && (
-															<div className="text-xs text-gray-500">{client.contactPhone}</div>
+															<div className="text-xs text-slate-500">{client.contactPhone}</div>
 														)}
 													</div>
 												) : (
-													<div className="text-sm text-gray-600">-</div>
+													<div className="text-sm text-slate-600">-</div>
 												)}
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap">
@@ -359,7 +359,7 @@ export default function ClientsPage() {
 														? 'bg-yellow-100 text-yellow-800' 
 														: client.active !== false 
 															? 'bg-green-100 text-green-800' 
-															: 'bg-gray-100 text-gray-800'
+															: 'bg-slate-100 text-slate-800'
 												}`}>
 													{client.archived ? 'Archived' : (client.active !== false ? 'Active' : 'Inactive')}
 												</span>
@@ -369,7 +369,7 @@ export default function ClientsPage() {
 													<button
 														type="button"
 														onClick={() => setOpenDropdownId(openDropdownId === client.id ? null : client.id)}
-														className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+														className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
 													>
 														<span>Actions</span>
 														<svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -377,7 +377,7 @@ export default function ClientsPage() {
 														</svg>
 													</button>
 													{openDropdownId === client.id && (
-														<div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+														<div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-slate-200 z-50">
 															<div className="py-1">
 																{!client.archived && (
 																	<button
@@ -401,7 +401,7 @@ export default function ClientsPage() {
 																				setOpenDropdownId(null)
 																			}}
 																			disabled={togglingClientId === client.id}
-																			className={`w-full text-left px-4 py-2 text-sm flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${client.active !== false ? 'text-gray-700 hover:bg-gray-100' : 'text-green-600 hover:bg-green-50'}`}
+																			className={`w-full text-left px-4 py-2 text-sm flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${client.active !== false ? 'text-slate-700 hover:bg-slate-100' : 'text-green-600 hover:bg-green-50'}`}
 																		>
 																			<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 																				<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={client.active !== false ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" : "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"} />
@@ -457,7 +457,7 @@ export default function ClientsPage() {
 						<div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
 							<div className="p-6">
 								<div className="mb-6">
-									<h2 className="text-2xl font-bold text-gray-900">
+									<h2 className="text-2xl font-bold text-slate-900">
 										{editingClient ? 'Edit Client' : 'Add Client'}
 									</h2>
 								</div>
@@ -465,13 +465,13 @@ export default function ClientsPage() {
 								<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 									<div className="grid grid-cols-2 gap-4">
 										<div>
-											<label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+											<label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-2">
 												Client Name *
 											</label>
 											<input
 												id="name"
 												type="text"
-												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 												placeholder="Client Name"
 												{...register('name')}
 											/>
@@ -480,12 +480,12 @@ export default function ClientsPage() {
 											)}
 										</div>
 										<div>
-											<label htmlFor="clientType" className="block text-sm font-medium text-gray-700 mb-2">
+											<label htmlFor="clientType" className="block text-sm font-medium text-slate-700 mb-2">
 												Client Type
 											</label>
 											<select
 												id="clientType"
-												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 												{...register('clientType')}
 											>
 												<option value="">Select Client Type</option>
@@ -501,28 +501,13 @@ export default function ClientsPage() {
 
 									<div className="grid grid-cols-2 gap-4">
 										<div>
-											<label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-												Email
-											</label>
-											<input
-												id="email"
-												type="email"
-												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-												placeholder="client@example.com"
-												{...register('email')}
-											/>
-											{errors.email && (
-												<p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-											)}
-										</div>
-										<div>
-											<label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-2">
+											<label htmlFor="phoneNumber" className="block text-sm font-medium text-slate-700 mb-2">
 												Phone Number
 											</label>
 											<input
 												id="phoneNumber"
 												type="tel"
-												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 												placeholder="+61 451248244"
 												{...register('phoneNumber')}
 											/>
@@ -530,16 +515,31 @@ export default function ClientsPage() {
 												<p className="mt-1 text-sm text-red-600">{errors.phoneNumber.message}</p>
 											)}
 										</div>
+										<div>
+											<label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
+												Email
+											</label>
+											<input
+												id="email"
+												type="email"
+												className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												placeholder="client@example.com"
+												{...register('email')}
+											/>
+											{errors.email && (
+												<p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+											)}
+										</div>
 									</div>
 
 									<div>
-										<label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
+										<label htmlFor="address" className="block text-sm font-medium text-slate-700 mb-2">
 											Street Address
 										</label>
 										<input
 											id="address"
 											type="text"
-											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+											className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 											placeholder="123 Main Street"
 											{...register('address')}
 										/>
@@ -549,13 +549,13 @@ export default function ClientsPage() {
 									</div>
 
 									<div>
-										<label htmlFor="suburb" className="block text-sm font-medium text-gray-700 mb-2">
+										<label htmlFor="suburb" className="block text-sm font-medium text-slate-700 mb-2">
 											Suburb
 										</label>
 										<input
 											id="suburb"
 											type="text"
-											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+											className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 											placeholder="Woodville Gardens"
 											{...register('suburb')}
 										/>
@@ -566,12 +566,12 @@ export default function ClientsPage() {
 
 									<div className="grid grid-cols-2 gap-4">
 										<div>
-											<label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
+											<label htmlFor="state" className="block text-sm font-medium text-slate-700 mb-2">
 												State
 											</label>
 											<select
 												id="state"
-												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 												{...register('state')}
 											>
 												<option value="">Select State</option>
@@ -589,13 +589,13 @@ export default function ClientsPage() {
 											)}
 										</div>
 										<div>
-											<label htmlFor="postcode" className="block text-sm font-medium text-gray-700 mb-2">
+											<label htmlFor="postcode" className="block text-sm font-medium text-slate-700 mb-2">
 												Postcode
 											</label>
 											<input
 												id="postcode"
 												type="text"
-												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 												placeholder="5012"
 												maxLength={10}
 												{...register('postcode')}
@@ -608,13 +608,13 @@ export default function ClientsPage() {
 
 									<div className="grid grid-cols-2 gap-4">
 										<div>
-											<label htmlFor="contactPerson" className="block text-sm font-medium text-gray-700 mb-2">
+											<label htmlFor="contactPerson" className="block text-sm font-medium text-slate-700 mb-2">
 												Contact Person
 											</label>
 											<input
 												id="contactPerson"
 												type="text"
-												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 												placeholder="John Doe"
 												{...register('contactPerson')}
 											/>
@@ -623,13 +623,13 @@ export default function ClientsPage() {
 											)}
 										</div>
 										<div>
-											<label htmlFor="contactPhone" className="block text-sm font-medium text-gray-700 mb-2">
+											<label htmlFor="contactPhone" className="block text-sm font-medium text-slate-700 mb-2">
 												Contact Phone
 											</label>
 											<input
 												id="contactPhone"
 												type="tel"
-												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 												placeholder="+61 451248244"
 												{...register('contactPhone')}
 											/>
@@ -640,13 +640,13 @@ export default function ClientsPage() {
 									</div>
 
 									<div>
-										<label htmlFor="note" className="block text-sm font-medium text-gray-700 mb-2">
+										<label htmlFor="note" className="block text-sm font-medium text-slate-700 mb-2">
 											Note
 										</label>
 										<textarea
 											id="note"
 											rows={4}
-											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+											className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 											placeholder="Additional notes about this client..."
 											{...register('note')}
 										/>
@@ -659,7 +659,7 @@ export default function ClientsPage() {
 										<button
 											type="button"
 											onClick={closeModal}
-											className="px-6 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+											className="px-6 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors"
 										>
 											Cancel
 										</button>

@@ -221,13 +221,13 @@ export default function ManageTeamPage() {
 	}
 
 	return (
-		<div className="flex min-h-screen bg-gray-50">
+		<div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
 			<DashboardSidebar />
-			<main className="flex-1 p-6">
-				<div className="mb-8 flex items-center justify-between">
+			<main className="flex-1 p-6 md:p-8 lg:p-12">
+				<div className="mb-12 flex items-center justify-between">
 					<div>
-						<h1 className="text-3xl font-bold text-gray-900 mb-2">Manage Team</h1>
-						<p className="text-gray-600">Add, edit, and remove team members</p>
+						<h1 className="text-3xl md:text-4xl font-light text-slate-900 mb-2">Manage Team</h1>
+						<p className="text-base text-slate-500 font-light">Add, edit, and remove team members</p>
 					</div>
 					<div className="flex items-center space-x-4">
 						<label className="flex items-center space-x-2 cursor-pointer">
@@ -235,9 +235,9 @@ export default function ManageTeamPage() {
 								type="checkbox"
 								checked={showInactive}
 								onChange={(e) => setShowInactive(e.target.checked)}
-								className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+								className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500"
 							/>
-							<span className="text-sm font-medium text-gray-700">Show Inactive</span>
+							<span className="text-sm font-medium text-slate-700">Show Inactive</span>
 						</label>
 						<button
 							onClick={openAddModal}
@@ -259,15 +259,15 @@ export default function ManageTeamPage() {
 
 				{loading ? (
 					<div className="flex items-center justify-center h-64">
-						<div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+						<div className="w-8 h-8 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
 					</div>
 				) : members.length === 0 ? (
-					<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-						<svg className="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<div className="bg-white rounded-lg shadow-sm border border-slate-200 p-12 text-center">
+						<svg className="w-16 h-16 text-slate-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 							<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
 						</svg>
-						<p className="text-gray-600 mb-2">No team members yet</p>
-						<p className="text-sm text-gray-500 mb-6">Get started by adding your first team member</p>
+						<p className="text-slate-600 mb-2">No team members yet</p>
+						<p className="text-sm text-slate-500 mb-6">Get started by adding your first team member</p>
 						<button
 							onClick={openAddModal}
 							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
@@ -279,37 +279,37 @@ export default function ManageTeamPage() {
 						</button>
 					</div>
 				) : (
-					<div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-visible pb-20">
+					<div className="bg-white rounded-lg shadow-sm border border-slate-200 overflow-visible pb-20">
 						<div className="overflow-x-auto overflow-y-visible min-h-[600px]">
 							<table className="w-full">
-								<thead className="bg-gray-50 border-b border-gray-200">
+								<thead className="bg-slate-50 border-b border-slate-200">
 									<tr>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Type</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">ID Number</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Name</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Email</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Phone</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ID Type</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ID Number</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
 									</tr>
 								</thead>
 								<tbody className="bg-white divide-y divide-gray-200">
 									{members.map((member) => (
-										<tr key={member.id} className="hover:bg-gray-50">
+										<tr key={member.id} className="hover:bg-slate-50">
 											<td className="px-6 py-4 whitespace-nowrap">
-												<div className="text-sm font-medium text-gray-900">{member.name}</div>
+												<div className="text-sm font-medium text-slate-900">{member.name}</div>
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap">
-												<div className="text-sm text-gray-600">{member.email}</div>
+												<div className="text-sm text-slate-600">{member.email}</div>
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap">
-												<div className="text-sm text-gray-600">{member.phone || '-'}</div>
+												<div className="text-sm text-slate-600">{member.phone || '-'}</div>
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap">
-												<div className="text-sm text-gray-600">{member.idType || '-'}</div>
+												<div className="text-sm text-slate-600">{member.idType || '-'}</div>
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap">
-												<div className="text-sm text-gray-600">{member.idNumber || '-'}</div>
+												<div className="text-sm text-slate-600">{member.idNumber || '-'}</div>
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap">
 												<span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -317,7 +317,7 @@ export default function ManageTeamPage() {
 														? 'bg-yellow-100 text-yellow-800' 
 														: member.active !== false 
 															? 'bg-green-100 text-green-800' 
-															: 'bg-gray-100 text-gray-800'
+															: 'bg-slate-100 text-slate-800'
 												}`}>
 													{member.archived ? 'Archived' : (member.active !== false ? 'Active' : 'Inactive')}
 												</span>
@@ -327,7 +327,7 @@ export default function ManageTeamPage() {
 													<button
 														type="button"
 														onClick={() => setOpenDropdownId(openDropdownId === member.id ? null : member.id)}
-														className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+														className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
 													>
 														<span>Actions</span>
 														<svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -335,7 +335,7 @@ export default function ManageTeamPage() {
 														</svg>
 													</button>
 													{openDropdownId === member.id && (
-														<div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+														<div className="absolute left-0 top-full mt-1 w-48 bg-white rounded-md shadow-lg border border-slate-200 z-50">
 															<div className="py-1">
 																{!member.archived && (
 																	<button
@@ -359,7 +359,7 @@ export default function ManageTeamPage() {
 																				handleToggleActive(member.id)
 																			}}
 																			disabled={togglingMemberId === member.id}
-																			className={`w-full text-left px-4 py-2 text-sm flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${member.active !== false ? 'text-gray-700 hover:bg-gray-100' : 'text-green-600 hover:bg-green-50'}`}
+																			className={`w-full text-left px-4 py-2 text-sm flex items-center disabled:opacity-50 disabled:cursor-not-allowed ${member.active !== false ? 'text-slate-700 hover:bg-slate-100' : 'text-green-600 hover:bg-green-50'}`}
 																		>
 																			<svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 																				<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={member.active !== false ? "M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" : "M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"} />
@@ -415,20 +415,20 @@ export default function ManageTeamPage() {
 						<div className="bg-white rounded-lg shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
 							<div className="p-6">
 								<div className="mb-6">
-									<h2 className="text-2xl font-bold text-gray-900">
+									<h2 className="text-2xl font-bold text-slate-900">
 										{editingMember ? 'Edit Team Member' : 'Add Team Member'}
 									</h2>
 								</div>
 
 								<form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 									<div>
-										<label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
+										<label htmlFor="name" className="block text-sm font-medium text-slate-700 mb-2">
 											Name *
 										</label>
 										<input
 											id="name"
 											type="text"
-											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+											className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 											placeholder="John Doe"
 											{...register('name')}
 										/>
@@ -438,13 +438,13 @@ export default function ManageTeamPage() {
 									</div>
 
 									<div>
-										<label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+										<label htmlFor="email" className="block text-sm font-medium text-slate-700 mb-2">
 											Email *
 										</label>
 										<input
 											id="email"
 											type="email"
-											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+											className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 											placeholder="john@example.com"
 											{...register('email')}
 										/>
@@ -454,13 +454,13 @@ export default function ManageTeamPage() {
 									</div>
 
 									<div>
-										<label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
+										<label htmlFor="phone" className="block text-sm font-medium text-slate-700 mb-2">
 											Phone
 										</label>
 										<input
 											id="phone"
 											type="tel"
-											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+											className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 											placeholder="+61 451248244"
 											{...register('phone')}
 										/>
@@ -470,12 +470,12 @@ export default function ManageTeamPage() {
 									</div>
 
 									<div>
-										<label htmlFor="idType" className="block text-sm font-medium text-gray-700 mb-2">
+										<label htmlFor="idType" className="block text-sm font-medium text-slate-700 mb-2">
 											ID Type
 										</label>
 										<select
 											id="idType"
-											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+											className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 											{...register('idType')}
 										>
 											<option value="">Select ID Type</option>
@@ -491,13 +491,13 @@ export default function ManageTeamPage() {
 									</div>
 
 									<div>
-										<label htmlFor="idNumber" className="block text-sm font-medium text-gray-700 mb-2">
+										<label htmlFor="idNumber" className="block text-sm font-medium text-slate-700 mb-2">
 											ID Number
 										</label>
 										<input
 											id="idNumber"
 											type="text"
-											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+											className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 											placeholder="123456789"
 											{...register('idNumber')}
 										/>
@@ -507,13 +507,13 @@ export default function ManageTeamPage() {
 									</div>
 
 									<div>
-										<label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-2">
+										<label htmlFor="address" className="block text-sm font-medium text-slate-700 mb-2">
 											Address
 										</label>
 										<input
 											id="address"
 											type="text"
-											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+											className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 											placeholder="123 Main Street"
 											{...register('address')}
 										/>
@@ -523,13 +523,13 @@ export default function ManageTeamPage() {
 									</div>
 
 									<div>
-										<label htmlFor="suburb" className="block text-sm font-medium text-gray-700 mb-2">
+										<label htmlFor="suburb" className="block text-sm font-medium text-slate-700 mb-2">
 											Suburb
 										</label>
 										<input
 											id="suburb"
 											type="text"
-											className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+											className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 											placeholder="Woodville Gardens"
 											{...register('suburb')}
 										/>
@@ -540,12 +540,12 @@ export default function ManageTeamPage() {
 
 									<div className="grid grid-cols-2 gap-4">
 										<div>
-											<label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-2">
+											<label htmlFor="state" className="block text-sm font-medium text-slate-700 mb-2">
 												State
 											</label>
 											<select
 												id="state"
-												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 												{...register('state')}
 											>
 												<option value="">Select State</option>
@@ -563,13 +563,13 @@ export default function ManageTeamPage() {
 											)}
 										</div>
 										<div>
-											<label htmlFor="postcode" className="block text-sm font-medium text-gray-700 mb-2">
+											<label htmlFor="postcode" className="block text-sm font-medium text-slate-700 mb-2">
 												Postcode
 											</label>
 											<input
 												id="postcode"
 												type="text"
-												className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
+												className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
 												placeholder="5012"
 												maxLength={10}
 												{...register('postcode')}
@@ -584,7 +584,7 @@ export default function ManageTeamPage() {
 										<button
 											type="button"
 											onClick={closeModal}
-											className="px-6 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
+											className="px-6 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors"
 										>
 											Cancel
 										</button>

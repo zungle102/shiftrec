@@ -54,7 +54,7 @@ export class ShiftService {
 				teamMemberName: teamMemberName,
 				teamMemberIds: teamMemberIds,
 				teamMemberNames: teamMemberNames,
-				status: shift.status || 'Planned',
+				status: shift.status || 'Drafted',
 				note: shift.note || '',
 				archived: shift.archived || false,
 				archivedAt: shift.archivedAt ? (shift.archivedAt instanceof Date ? shift.archivedAt.toISOString() : shift.archivedAt) : null,
@@ -182,8 +182,8 @@ export class ShiftService {
 		const teamMemberName = teamMemberNames.length > 0 ? teamMemberNames[0] : ''
 
 		const now = new Date()
-		// Use provided status, or auto-set to "Assigned" if team member is provided, otherwise "Planned"
-		const finalStatus = status || (finalTeamMemberIds.length > 0 ? 'Assigned' : 'Planned')
+		// Use provided status, or auto-set to "Assigned" if team member is provided, otherwise "Drafted"
+		const finalStatus = status || (finalTeamMemberIds.length > 0 ? 'Assigned' : 'Drafted')
 		const result = await db.collection('shifts').insertOne({
 			ownerEmail,
 			serviceDate,
@@ -316,7 +316,7 @@ export class ShiftService {
 			const now = new Date()
 			// Track timestamps when status changes to each value
 			if (status !== existing.status) {
-				if (status === 'Sent') {
+				if (status === 'Pending') {
 					updateData.publishedAt = now
 				} else if (status === 'Assigned') {
 					updateData.assignedAt = now
@@ -334,7 +334,7 @@ export class ShiftService {
 					updateData.canceledAt = now
 				} else if (status === 'Timesheet Submitted') {
 					updateData.timesheetSubmittedAt = now
-				} else if (status === 'Approved') {
+				} else if (status === 'Timesheet Approved') {
 					updateData.approvedAt = now
 				}
 			}
@@ -365,7 +365,7 @@ export class ShiftService {
 		const teamMemberName = teamMemberNames.length > 0 ? teamMemberNames[0] : ''
 
 		// Determine final status - if team member was assigned, use "Assigned", otherwise use provided status or existing status
-		const finalStatus = (teamMemberId && !status && teamMemberId) ? 'Assigned' : (status !== undefined ? status : existing.status || 'Planned')
+		const finalStatus = (teamMemberId && !status && teamMemberId) ? 'Assigned' : (status !== undefined ? status : existing.status || 'Drafted')
 		
 		return {
 			id: shiftId,

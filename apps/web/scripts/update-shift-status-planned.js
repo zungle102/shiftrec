@@ -1,5 +1,6 @@
 const { MongoClient } = require('mongodb')
 const path = require('path')
+
 require('dotenv').config({ path: path.join(__dirname, '../.env') })
 
 const uri = process.env.MONGODB_URI
@@ -8,39 +9,26 @@ if (!uri) {
 	process.exit(1)
 }
 
-async function setAllShiftsToPlanned() {
+async function updateShiftStatus() {
 	const client = new MongoClient(uri)
 	try {
 		await client.connect()
 		const db = client.db()
 		const shiftsCollection = db.collection('shifts')
 		
-		// Update all shifts to status "Drafted" and clear all status timestamps
+		// Update all shifts with status "Planned" to "Drafted"
 		const result = await shiftsCollection.updateMany(
-			{}, // Match all shifts
+			{ status: 'Planned' },
 			{ 
 				$set: { 
 					status: 'Drafted',
 					updatedAt: new Date()
-				},
-				$unset: {
-					publishedAt: '',
-					assignedAt: '',
-					confirmedAt: '',
-					declinedAt: '',
-					inProgressAt: '',
-					completedAt: '',
-					missedAt: '',
-					canceledAt: '',
-					timesheetSubmittedAt: '',
-					approvedAt: ''
 				}
 			}
 		)
 		
-		console.log(`✓ Reset ${result.modifiedCount} shift(s) to "Drafted" status`)
+		console.log(`✓ Updated ${result.modifiedCount} shift(s) from "Planned" to "Drafted"`)
 		console.log(`✓ ${result.matchedCount} total shift(s) matched`)
-		console.log(`✓ Cleared all status timestamps`)
 	} catch (error) {
 		console.error('Error updating shifts:', error)
 		process.exit(1)
@@ -49,5 +37,5 @@ async function setAllShiftsToPlanned() {
 	}
 }
 
-setAllShiftsToPlanned()
+updateShiftStatus()
 

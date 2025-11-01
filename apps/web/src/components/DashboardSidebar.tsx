@@ -82,7 +82,7 @@ export function DashboardSidebar() {
 	const pathname = usePathname()
 
 	return (
-		<aside className="w-64 bg-white border-r border-gray-200 min-h-screen flex-shrink-0">
+		<aside className="w-64 bg-white border-r-4 border-blue-300 min-h-screen flex-shrink-0 shadow-xl">
 			<div className="p-4">
 				<nav className="space-y-1">
 					{navigation.map((item) => {
@@ -92,14 +92,14 @@ export function DashboardSidebar() {
 								key={item.name}
 								href={item.href}
 								className={`
-									flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-colors
+									flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200
 									${isActive
-										? 'bg-blue-50 text-blue-700 font-medium'
-										: 'text-gray-700 hover:bg-gray-50 hover:text-gray-900'
+										? 'bg-blue-500 text-white font-bold border-l-4 border-orange-500 shadow-lg'
+										: 'text-slate-700 hover:bg-blue-50 hover:text-blue-700 font-semibold'
 									}
 								`}
 							>
-								<span className={isActive ? 'text-blue-600' : 'text-gray-400'}>
+								<span className={isActive ? 'text-white' : 'text-slate-500'}>
 									{item.icon}
 								</span>
 								<span>{item.name}</span>

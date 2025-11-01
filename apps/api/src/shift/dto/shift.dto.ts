@@ -1,8 +1,8 @@
 import { z } from 'zod'
 
 const shiftStatusEnum = z.enum([
-	'Planned',
-	'Sent',
+	'Drafted',
+	'Pending',
 	'Assigned',
 	'Confirmed',
 	'Declined',
@@ -11,7 +11,7 @@ const shiftStatusEnum = z.enum([
 	'Missed',
 	'Canceled',
 	'Timesheet Submitted',
-	'Approved'
+	'Timesheet Approved'
 ])
 
 export const createShiftSchema = z.object({
@@ -29,7 +29,7 @@ export const createShiftSchema = z.object({
 	clientContactPhone: z.string().max(20).optional().or(z.literal('')),
 	teamMemberId: z.string().max(100).optional().or(z.literal('')),
 	teamMemberIds: z.array(z.string().max(100)).optional(),
-	status: shiftStatusEnum.optional().default('Planned'),
+	status: shiftStatusEnum.optional().default('Drafted'),
 	note: z.string().max(1000).optional().or(z.literal(''))
 })
 
@@ -67,7 +67,7 @@ export class CreateShiftDto {
 	clientContactPhone?: string
 	teamMemberId?: string
 	teamMemberIds?: string[]
-	status?: 'Planned' | 'Sent' | 'Assigned' | 'Confirmed' | 'Declined' | 'In Progress' | 'Completed' | 'Missed' | 'Canceled' | 'Timesheet Submitted' | 'Approved'
+	status?: 'Drafted' | 'Pending' | 'Assigned' | 'Confirmed' | 'Declined' | 'In Progress' | 'Completed' | 'Missed' | 'Canceled' | 'Timesheet Submitted' | 'Timesheet Approved'
 	note?: string
 }
 
@@ -86,7 +86,7 @@ export class UpdateShiftDto {
 	clientContactPhone?: string
 	teamMemberId?: string
 	teamMemberIds?: string[]
-	status?: 'Planned' | 'Sent' | 'Assigned' | 'Confirmed' | 'Declined' | 'In Progress' | 'Completed' | 'Missed' | 'Canceled' | 'Timesheet Submitted' | 'Approved'
+	status?: 'Drafted' | 'Pending' | 'Assigned' | 'Confirmed' | 'Declined' | 'In Progress' | 'Completed' | 'Missed' | 'Canceled' | 'Timesheet Submitted' | 'Timesheet Approved'
 	note?: string
 }
 

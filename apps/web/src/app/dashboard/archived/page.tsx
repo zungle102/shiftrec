@@ -214,12 +214,12 @@ export default function ArchivedDataPage() {
 	}
 
 	return (
-		<div className="flex min-h-screen bg-gray-50">
+		<div className="flex min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
 			<DashboardSidebar />
-			<main className="flex-1 p-6">
-				<div className="mb-8">
-					<h1 className="text-3xl font-bold text-gray-900 mb-2">Archived Data</h1>
-					<p className="text-gray-600">View and manage archived clients, team members, and shifts</p>
+			<main className="flex-1 p-6 md:p-8 lg:p-12">
+				<div className="mb-12">
+					<h1 className="text-3xl md:text-4xl font-light text-slate-900 mb-2">Archived Data</h1>
+					<p className="text-base text-slate-500 font-light">View and manage archived clients, team members, and shifts</p>
 				</div>
 
 				{error && (
@@ -230,43 +230,43 @@ export default function ArchivedDataPage() {
 
 				{loading ? (
 					<div className="flex items-center justify-center h-64">
-						<div className="w-8 h-8 border-2 border-gray-300 border-t-blue-600 rounded-full animate-spin"></div>
+						<div className="w-8 h-8 border-2 border-slate-300 border-t-blue-600 rounded-full animate-spin"></div>
 					</div>
 				) : (
 					<div className="space-y-8">
 						{/* Archived Clients Section */}
-						<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-							<h2 className="text-xl font-semibold text-gray-900 mb-4">Archived Clients ({archivedClients.length})</h2>
+						<div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+							<h2 className="text-xl font-semibold text-slate-900 mb-4">Archived Clients ({archivedClients.length})</h2>
 							{archivedClients.length === 0 ? (
 								<div className="text-center py-8">
-									<p className="text-gray-500">No archived clients</p>
+									<p className="text-slate-500">No archived clients</p>
 								</div>
 							) : (
 								<div className="overflow-x-auto">
 									<table className="w-full">
-										<thead className="bg-gray-50 border-b border-gray-200">
+										<thead className="bg-slate-50 border-b border-slate-200">
 											<tr>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Name</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Type</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Phone</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
 											</tr>
 										</thead>
 										<tbody className="bg-white divide-y divide-gray-200">
 											{archivedClients.map((client) => (
-												<tr key={client.id} className="hover:bg-gray-50">
+												<tr key={client.id} className="hover:bg-slate-50">
 													<td className="px-6 py-4 whitespace-nowrap">
-														<div className="text-sm font-medium text-gray-900">{client.name}</div>
+														<div className="text-sm font-medium text-slate-900">{client.name}</div>
 														{client.email && (
-															<div className="text-xs text-gray-500">{client.email}</div>
+															<div className="text-xs text-slate-500">{client.email}</div>
 														)}
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap">
-														<div className="text-sm text-gray-600">{client.clientType || '-'}</div>
+														<div className="text-sm text-slate-600">{client.clientType || '-'}</div>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap">
-														<div className="text-sm text-gray-600">{client.phoneNumber || '-'}</div>
+														<div className="text-sm text-slate-600">{client.phoneNumber || '-'}</div>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap">
 														<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
@@ -306,35 +306,35 @@ export default function ArchivedDataPage() {
 						</div>
 
 						{/* Archived Team Members Section */}
-						<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-							<h2 className="text-xl font-semibold text-gray-900 mb-4">Archived Team Members ({archivedTeamMembers.length})</h2>
+						<div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+							<h2 className="text-xl font-semibold text-slate-900 mb-4">Archived Team Members ({archivedTeamMembers.length})</h2>
 							{archivedTeamMembers.length === 0 ? (
 								<div className="text-center py-8">
-									<p className="text-gray-500">No archived team members</p>
+									<p className="text-slate-500">No archived team members</p>
 								</div>
 							) : (
 								<div className="overflow-x-auto">
 									<table className="w-full">
-										<thead className="bg-gray-50 border-b border-gray-200">
+										<thead className="bg-slate-50 border-b border-slate-200">
 											<tr>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Phone</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Name</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Email</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Phone</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
 											</tr>
 										</thead>
 										<tbody className="bg-white divide-y divide-gray-200">
 											{archivedTeamMembers.map((member) => (
-												<tr key={member.id} className="hover:bg-gray-50">
+												<tr key={member.id} className="hover:bg-slate-50">
 													<td className="px-6 py-4 whitespace-nowrap">
-														<div className="text-sm font-medium text-gray-900">{member.name}</div>
+														<div className="text-sm font-medium text-slate-900">{member.name}</div>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap">
-														<div className="text-sm text-gray-600">{member.email}</div>
+														<div className="text-sm text-slate-600">{member.email}</div>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap">
-														<div className="text-sm text-gray-600">{member.phone || '-'}</div>
+														<div className="text-sm text-slate-600">{member.phone || '-'}</div>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap">
 														<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
@@ -374,39 +374,39 @@ export default function ArchivedDataPage() {
 						</div>
 
 						{/* Archived Shifts Section */}
-						<div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-							<h2 className="text-xl font-semibold text-gray-900 mb-4">Archived Shifts ({archivedShifts.length})</h2>
+						<div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
+							<h2 className="text-xl font-semibold text-slate-900 mb-4">Archived Shifts ({archivedShifts.length})</h2>
 							{archivedShifts.length === 0 ? (
 								<div className="text-center py-8">
-									<p className="text-gray-500">No archived shifts</p>
+									<p className="text-slate-500">No archived shifts</p>
 								</div>
 							) : (
 								<div className="overflow-x-auto">
 									<table className="w-full">
-										<thead className="bg-gray-50 border-b border-gray-200">
+										<thead className="bg-slate-50 border-b border-slate-200">
 											<tr>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Service Date</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Team Member</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Service Date</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Time</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Client</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Team Member</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
 											</tr>
 										</thead>
 										<tbody className="bg-white divide-y divide-gray-200">
 											{archivedShifts.map((shift) => (
-												<tr key={shift.id} className="hover:bg-gray-50">
+												<tr key={shift.id} className="hover:bg-slate-50">
 													<td className="px-6 py-4 whitespace-nowrap">
-														<div className="text-sm font-medium text-gray-900">{formatDate(shift.serviceDate)}</div>
+														<div className="text-sm font-medium text-slate-900">{formatDate(shift.serviceDate)}</div>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap">
-														<div className="text-sm text-gray-900">{shift.startTime} - {shift.endTime}</div>
+														<div className="text-sm text-slate-900">{shift.startTime} - {shift.endTime}</div>
 													</td>
 													<td className="px-6 py-4">
-														<div className="text-sm font-medium text-gray-900">{shift.clientName}</div>
+														<div className="text-sm font-medium text-slate-900">{shift.clientName}</div>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap">
-														<div className="text-sm text-gray-900">{shift.teamMemberName || '-'}</div>
+														<div className="text-sm text-slate-900">{shift.teamMemberName || '-'}</div>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap">
 														<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
