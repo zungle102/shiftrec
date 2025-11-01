@@ -6,7 +6,7 @@ export const createClientSchema = z.object({
 	suburb: z.string().max(100).optional().or(z.literal('')),
 	state: z.string().max(50).optional().or(z.literal('')),
 	postcode: z.string().max(10).optional().or(z.literal('')),
-	clientType: z.string().max(50).optional().or(z.literal('')),
+	clientTypeId: z.string().max(50).optional().or(z.literal('')),
 	phoneNumber: z.string().max(20).optional().or(z.literal('')),
 	contactPerson: z.string().max(100).optional().or(z.literal('')),
 	contactPhone: z.string().max(20).optional().or(z.literal('')),
@@ -21,7 +21,7 @@ export const updateClientSchema = z.object({
 	suburb: z.string().max(100).optional().or(z.literal('')),
 	state: z.string().max(50).optional().or(z.literal('')),
 	postcode: z.string().max(10).optional().or(z.literal('')),
-	clientType: z.string().max(50).optional().or(z.literal('')),
+	clientTypeId: z.string().max(50).optional().or(z.literal('')),
 	phoneNumber: z.string().max(20).optional().or(z.literal('')),
 	contactPerson: z.string().max(100).optional().or(z.literal('')),
 	contactPhone: z.string().max(20).optional().or(z.literal('')),
@@ -36,7 +36,7 @@ export class CreateClientDto {
 	suburb?: string
 	state?: string
 	postcode?: string
-	clientType?: string
+	clientTypeId?: string
 	phoneNumber?: string
 	contactPerson?: string
 	contactPhone?: string
@@ -51,7 +51,7 @@ export class UpdateClientDto {
 	suburb?: string
 	state?: string
 	postcode?: string
-	clientType?: string
+	clientTypeId?: string
 	phoneNumber?: string
 	contactPerson?: string
 	contactPhone?: string

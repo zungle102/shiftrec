@@ -21,7 +21,7 @@ const shiftSchema = z.object({
 	clientPhoneNumber: z.string().max(20, 'Client phone number is too long').optional().or(z.literal('')),
 	clientContactPerson: z.string().max(100, 'Client contact person is too long').optional().or(z.literal('')),
 	clientContactPhone: z.string().max(20, 'Client contact phone is too long').optional().or(z.literal('')),
-	teamMemberId: z.string().max(100, 'Team member ID is too long').optional().or(z.literal('')),
+	staffMemberId: z.string().max(100, 'Staff member ID is too long').optional().or(z.literal('')),
 	status: z.enum(['Drafted', 'Pending', 'Assigned', 'Confirmed', 'Declined', 'In Progress', 'Completed', 'Missed', 'Canceled', 'Timesheet Submitted', 'Timesheet Approved']).optional().default('Drafted'),
 	note: z.string().max(1000, 'Note is too long').optional().or(z.literal(''))
 })
@@ -56,10 +56,10 @@ interface Shift {
 	clientPhoneNumber: string
 	clientContactPerson: string
 	clientContactPhone: string
-	teamMemberId?: string
-	teamMemberName?: string
-	teamMemberIds?: string[]
-	teamMemberNames?: string[]
+	staffMemberId?: string
+	staffMemberName?: string
+	notifiedStaffMemberIds?: string[]
+	staffMemberNames?: string[]
 	status?: string
 	note: string
 	archived?: boolean
@@ -82,7 +82,7 @@ export default function ShiftsPage() {
 	const router = useRouter()
 	const [shifts, setShifts] = useState<Shift[]>([])
 	const [clients, setClients] = useState<Array<{ id: string; name: string; address: string; suburb: string; state: string; postcode: string; clientType: string; email: string; phoneNumber: string; contactPerson: string; contactPhone: string }>>([])
-	const [teamMembers, setTeamMembers] = useState<Array<{ id: string; name: string; email: string }>>([])
+	const [staffMembers, setStaffMembers] = useState<Array<{ id: string; name: string; email: string }>>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [successMessage, setSuccessMessage] = useState<string | null>(null)
@@ -90,12 +90,13 @@ export default function ShiftsPage() {
 	const [isAddClientModalOpen, setIsAddClientModalOpen] = useState(false)
 	const [isSendToModalOpen, setIsSendToModalOpen] = useState(false)
 	const [sendingToShiftId, setSendingToShiftId] = useState<string | null>(null)
-	const [selectedTeamMemberIds, setSelectedTeamMemberIds] = useState<string[]>([])
+	const [selectedStaffMemberIds, setSelectedStaffMemberIds] = useState<string[]>([])
 	const [editingShift, setEditingShift] = useState<Shift | null>(null)
 	const [deletingShiftId, setDeletingShiftId] = useState<string | null>(null)
 	const [restoringShiftId, setRestoringShiftId] = useState<string | null>(null)
 	const [publishingShiftId, setPublishingShiftId] = useState<string | null>(null)
 	const [assigningShiftId, setAssigningShiftId] = useState<string | null>(null)
+	const [unAssigningShiftId, setUnAssigningShiftId] = useState<string | null>(null)
 	const [selectedClientId, setSelectedClientId] = useState<string>('')
 	const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
 	const [statusFilters, setStatusFilters] = useState<string[]>(['All'])
@@ -115,7 +116,7 @@ export default function ShiftsPage() {
 			clientPhoneNumber: '',
 			clientContactPerson: '',
 			clientContactPhone: '',
-			teamMemberId: '',
+			staffMemberId: '',
 			status: 'Drafted',
 			note: ''
 		}
@@ -145,7 +146,7 @@ export default function ShiftsPage() {
 		}
 		fetchShifts()
 		fetchClients()
-		fetchTeamMembers()
+		fetchStaffMembers()
 	}, [session, router])
 
 	// Close dropdown when clicking outside
@@ -161,17 +162,17 @@ export default function ShiftsPage() {
 		}
 	}, [openDropdownId])
 
-	const fetchTeamMembers = async () => {
+	const fetchStaffMembers = async () => {
 		if (!session?.user?.email) return
 
 		try {
 			const { api } = await import('../../../lib/api')
-			const data = await api.getTeamMembers(session.user.email)
-			// Filter to only active team members (not archived and active !== false)
+			const data = await api.getStaffMembers(session.user.email)
+			// Filter to only active staff members (not archived and active !== false)
 			const activeMembers = data.filter(member => !member.archived && member.active !== false)
-			setTeamMembers(activeMembers.map(member => ({ id: member.id, name: member.name, email: member.email })))
+			setStaffMembers(activeMembers.map(member => ({ id: member.id, name: member.name, email: member.email })))
 		} catch (err) {
-			console.error('Failed to load team members:', err)
+			console.error('Failed to load staff members:', err)
 		}
 	}
 
@@ -214,6 +215,8 @@ export default function ShiftsPage() {
 			resetClient()
 			// Refresh clients list and select the newly created client
 			await fetchClients(newClient.id)
+			// Also refresh staff members in case of any updates
+			await fetchStaffMembers()
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to create client')
 		}
@@ -252,7 +255,7 @@ export default function ShiftsPage() {
 			clientPhoneNumber: '',
 			clientContactPerson: '',
 			clientContactPhone: '',
-			teamMemberId: '',
+			staffMemberId: '',
 			status: 'Drafted',
 			note: ''
 		})
@@ -281,13 +284,13 @@ export default function ShiftsPage() {
 			clientPhoneNumber: shift.clientPhoneNumber || '',
 			clientContactPerson: shift.clientContactPerson || '',
 			clientContactPhone: shift.clientContactPhone || '',
-			teamMemberId: shift.teamMemberId || '',
+			staffMemberId: shift.staffMemberId || '',
 			note: shift.note || ''
 		})
 		
 		// Ensure team member is set in the form
-		if (shift.teamMemberId) {
-			setValue('teamMemberId', shift.teamMemberId)
+		if (shift.staffMemberId) {
+			setValue('staffMemberId', shift.staffMemberId)
 		}
 		
 		setIsModalOpen(true)
@@ -346,7 +349,12 @@ export default function ShiftsPage() {
 		}
 
 			closeModal()
-			fetchShifts()
+			// Refresh shifts, clients, and staff members to ensure all data is up to date
+			await Promise.all([
+				fetchShifts(),
+				fetchClients(),
+				fetchStaffMembers()
+			])
 		} catch (err) {
 			setError(err instanceof Error ? err.message : 'Failed to save shift')
 		}
@@ -387,16 +395,25 @@ export default function ShiftsPage() {
 	const handlePublish = async (shiftId: string) => {
 		if (!session?.user?.email) return
 
-		// Open the Send To modal
+		// Get the shift to load current notified staff members
+		const shift = shifts.find(s => s.id === shiftId)
+		if (shift) {
+			// Load current notified staff members
+			const currentNotifiedIds = shift.notifiedStaffMemberIds || []
+			setSelectedStaffMemberIds(currentNotifiedIds)
+		} else {
+			setSelectedStaffMemberIds([])
+		}
+
+		// Open the Notify modal
 		setSendingToShiftId(shiftId)
-		setSelectedTeamMemberIds([])
 		setIsSendToModalOpen(true)
 	}
 
 		const handleConfirmSendTo = async () => {
 		if (!session?.user?.email || !sendingToShiftId) return
 
-		if (selectedTeamMemberIds.length === 0) {
+		if (selectedStaffMemberIds.length === 0) {
 			setError('Please select at least one team member')
 			return
 		}
@@ -411,32 +428,47 @@ export default function ShiftsPage() {
 			const shift = shifts.find(s => s.id === sendingToShiftId)
 			if (!shift) {
 				setError('Shift not found')
+				setPublishingShiftId(null)
 				return
 			}
 
 			// Combine existing team member IDs with newly selected ones (avoid duplicates)
-			const existingTeamMemberIds = shift.teamMemberIds || (shift.teamMemberId ? [shift.teamMemberId] : [])
-			const combinedTeamMemberIds = [...new Set([...existingTeamMemberIds, ...selectedTeamMemberIds])]
+			// This ensures all notified team members (existing + newly selected) are preserved
+			// Ensure all IDs are strings for validation
+			const existingStaffMemberIds = (shift.notifiedStaffMemberIds || (shift.staffMemberId ? [shift.staffMemberId] : []))
+				.map(id => String(id)) // Convert to strings to ensure validation passes
+				.filter(id => id && id.length > 0 && id !== 'null' && id !== 'undefined') // Filter out empty or invalid IDs
+			
+			const combinedStaffMemberIds = [...new Set([...existingStaffMemberIds, ...selectedStaffMemberIds])]
+				.filter(id => id && id.length > 0 && id !== 'null' && id !== 'undefined') // Ensure all IDs are valid strings
 			
 			// Update the shift with all team member IDs
-			await api.updateShift(session.user.email, sendingToShiftId, { 
-				status: 'Pending',
-				teamMemberIds: combinedTeamMemberIds
-			})
+			// The backend will populate staffMemberNames when we fetch shifts, 
+			// which will be displayed in the "Notified Team Members" column
+			// Always include notifiedStaffMemberIds, even if empty (backend will handle it)
+			const updatePayload = { 
+				status: 'Pending' as const,
+				notifiedStaffMemberIds: combinedStaffMemberIds
+			}
+			
+			console.log('Updating shift with payload:', JSON.stringify(updatePayload, null, 2))
+			console.log('Combined staff member IDs:', combinedStaffMemberIds)
+			
+			await api.updateShift(session.user.email, sendingToShiftId, updatePayload)
 			
 			// Get team member names for notification
-			const teamMemberNames = selectedTeamMemberIds
-				.map(id => teamMembers.find(m => m.id === id)?.name)
+			const staffMemberNames = selectedStaffMemberIds
+				.map(id => staffMembers.find(m => m.id === id)?.name)
 				.filter(Boolean)
 			
-			if (teamMemberNames.length > 0) {
-				const namesText = teamMemberNames.length === 1 
-					? teamMemberNames[0]
-					: teamMemberNames.length === 2
-					? `${teamMemberNames[0]} and ${teamMemberNames[1]}`
-					: `${teamMemberNames.slice(0, -1).join(', ')}, and ${teamMemberNames[teamMemberNames.length - 1]}`
+			if (staffMemberNames.length > 0) {
+				const namesText = staffMemberNames.length === 1 
+					? staffMemberNames[0]
+					: staffMemberNames.length === 2
+					? `${staffMemberNames[0]} and ${staffMemberNames[1]}`
+					: `${staffMemberNames.slice(0, -1).join(', ')}, and ${staffMemberNames[staffMemberNames.length - 1]}`
 				
-				setSuccessMessage(`Shift has been sent to ${namesText}`)
+				setSuccessMessage(`Shift has been notified to ${namesText}`)
 			}
 			
 			// Auto-hide success message after 5 seconds
@@ -444,23 +476,30 @@ export default function ShiftsPage() {
 				setSuccessMessage(null)
 			}, 5000)
 			
+			// Close modal and reset state
 			setIsSendToModalOpen(false)
 			setSendingToShiftId(null)
-			setSelectedTeamMemberIds([])
+			setSelectedStaffMemberIds([])
+			setError(null)
 			fetchShifts()
-		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to send shift')
+		} catch (err: any) {
+			// Extract error message from API response
+			const errorMessage = err instanceof Error 
+				? err.message 
+				: (err?.response?.data?.error || err?.response?.data?.message || 'Failed to notify shift')
+			setError(errorMessage)
+			console.error('Error notifying shift:', err)
 		} finally {
 			setPublishingShiftId(null)
 		}
 	}
 
-	const handleTeamMemberToggle = (teamMemberId: string) => {
-		setSelectedTeamMemberIds(prev => {
-			if (prev.includes(teamMemberId)) {
-				return prev.filter(id => id !== teamMemberId)
+	const handleStaffMemberToggle = (staffMemberId: string) => {
+		setSelectedStaffMemberIds(prev => {
+			if (prev.includes(staffMemberId)) {
+				return prev.filter(id => id !== staffMemberId)
 			} else {
-				return [...prev, teamMemberId]
+				return [...prev, staffMemberId]
 			}
 		})
 	}
@@ -477,9 +516,9 @@ export default function ShiftsPage() {
 			
 			// Get the team member name from the shift
 			const shift = shifts.find(s => s.id === shiftId)
-			const teamMemberName = shift?.teamMemberName || 'team member'
+			const staffMemberName = shift?.staffMemberName || 'staff member'
 			
-			setSuccessMessage(`Shift has been assigned to ${teamMemberName}`)
+			setSuccessMessage(`Shift has been assigned to ${staffMemberName}`)
 			
 			// Auto-hide success message after 5 seconds
 			setTimeout(() => {
@@ -491,6 +530,35 @@ export default function ShiftsPage() {
 			setError(err instanceof Error ? err.message : 'Failed to assign shift')
 		} finally {
 			setAssigningShiftId(null)
+		}
+	}
+
+	const handleUnAssign = async (shiftId: string) => {
+		if (!session?.user?.email) return
+
+		setUnAssigningShiftId(shiftId)
+		setError(null)
+		setSuccessMessage(null)
+		try {
+			const { api } = await import('../../../lib/api')
+			// Remove team member assignment and set status back to Pending
+			await api.updateShift(session.user.email, shiftId, { 
+				staffMemberId: '',
+				status: 'Pending'
+			})
+			
+			setSuccessMessage('Shift has been un-assigned')
+			
+			// Auto-hide success message after 5 seconds
+			setTimeout(() => {
+				setSuccessMessage(null)
+			}, 5000)
+			
+			fetchShifts()
+		} catch (err) {
+			setError(err instanceof Error ? err.message : 'Failed to un-assign shift')
+		} finally {
+			setUnAssigningShiftId(null)
 		}
 	}
 
@@ -567,10 +635,10 @@ export default function ShiftsPage() {
 					<div className="flex items-center space-x-4">
 						<button
 							onClick={openAddModal}
-							className="px-8 py-3 bg-slate-900 text-white font-normal border border-slate-900 hover:bg-slate-800 transition-colors duration-200 flex items-center space-x-2"
+							className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
 						>
 							<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 4v16m8-8H4" />
+								<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
 							</svg>
 							<span>New Shift</span>
 						</button>
@@ -719,13 +787,13 @@ export default function ShiftsPage() {
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Service Date</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Time</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Client</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Team Member</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Requested Team Members</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Staff Member</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Notified Staff Members</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Service Details</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Location</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Send To/Assign</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Notify/Assign</th>
+										<th></th>
 									</tr>
 								</thead>
 								<tbody className="bg-white divide-y divide-gray-200">
@@ -747,24 +815,24 @@ export default function ShiftsPage() {
 												)}
 											</td>
 											<td className="px-6 py-4">
-												{shift.teamMemberName ? (
-													<div className="text-sm text-slate-900">{shift.teamMemberName}</div>
+												{shift.staffMemberName ? (
+													<div className="text-sm text-slate-900">{shift.staffMemberName}</div>
 												) : (
 													<div className="text-sm text-slate-500">-</div>
 												)}
 											</td>
 											<td className="px-6 py-4">
-												{shift.teamMemberIds && shift.teamMemberIds.length > 0 ? (
+												{shift.notifiedStaffMemberIds && shift.notifiedStaffMemberIds.length > 0 ? (
 													<div className="text-sm text-slate-900">
-														{shift.teamMemberNames && shift.teamMemberNames.length > 0 ? (
-															shift.teamMemberNames.map((name, index) => (
+														{shift.staffMemberNames && shift.staffMemberNames.length > 0 ? (
+															shift.staffMemberNames.map((name, index) => (
 																<div key={index} className="mb-1 last:mb-0">
 																	{name}
 																</div>
 															))
 														) : (
 															<div className="text-slate-500 text-xs">
-																{shift.teamMemberIds.length} member(s)
+																{shift.notifiedStaffMemberIds.length} member(s)
 															</div>
 														)}
 													</div>
@@ -831,53 +899,65 @@ export default function ShiftsPage() {
 											</td>
 											<td className="px-6 py-4 whitespace-nowrap">
 												<div className="flex flex-col gap-2">
-													{!shift.archived && shift.status === 'Drafted' && !shift.teamMemberId && (
+													{!shift.archived && shift.status === 'Drafted' && (
+														<>
+															<button
+																onClick={() => handlePublish(shift.id)}
+																disabled={publishingShiftId === shift.id}
+																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+															>
+																<svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+																</svg>
+																{publishingShiftId === shift.id ? 'Notifying...' : 'Notify Staff'}
+															</button>
+															<button
+																onClick={() => handleAssign(shift.id)}
+																disabled={assigningShiftId === shift.id}
+																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+															>
+																<svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+																</svg>
+																{assigningShiftId === shift.id ? 'Assigning...' : 'Assign Shift'}
+															</button>
+														</>
+													)}
+													{!shift.archived && shift.status === 'Assigned' && (
 														<button
-															onClick={() => handlePublish(shift.id)}
-															disabled={publishingShiftId === shift.id}
-															className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+															onClick={() => handleUnAssign(shift.id)}
+															disabled={unAssigningShiftId === shift.id}
+															className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-700 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 														>
 															<svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
 															</svg>
-															{publishingShiftId === shift.id ? 'Sending...' : 'Send To'}
+															{unAssigningShiftId === shift.id ? 'Un-Assigning...' : 'Un-Assign'}
 														</button>
 													)}
-													{!shift.archived && shift.status === 'Drafted' && shift.teamMemberId && (
-														<button
-															onClick={() => handleAssign(shift.id)}
-															disabled={assigningShiftId === shift.id}
-															className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-														>
-															<svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-															</svg>
-															{assigningShiftId === shift.id ? 'Assigning...' : 'Assign Shift'}
-														</button>
-													)}
-													{!shift.archived && shift.status === 'Declined' && (
-														<button
-															onClick={() => handlePublish(shift.id)}
-															disabled={publishingShiftId === shift.id}
-															className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-														>
-															<svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-															</svg>
-															{publishingShiftId === shift.id ? 'Sending...' : 'Send To'}
-														</button>
-													)}
-													{!shift.archived && shift.status === 'Pending' && (
-														<button
-															onClick={() => handlePublish(shift.id)}
-															disabled={publishingShiftId === shift.id}
-															className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-														>
-															<svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-																<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-															</svg>
-															{publishingShiftId === shift.id ? 'Sending...' : 'Send To'}
-														</button>
+													{!shift.archived && (shift.status === 'Declined' || shift.status === 'Pending') && (
+														<>
+															<button
+																onClick={() => handlePublish(shift.id)}
+																disabled={publishingShiftId === shift.id}
+																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 border border-blue-200 rounded-lg hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+															>
+																<svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+																</svg>
+																{publishingShiftId === shift.id ? 'Notifying...' : 'Notify Staff'}
+															</button>
+															<button
+																onClick={() => handleAssign(shift.id)}
+																disabled={assigningShiftId === shift.id}
+																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-purple-700 bg-purple-50 border border-purple-200 rounded-lg hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+															>
+																<svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+																	<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+																</svg>
+																{assigningShiftId === shift.id ? 'Assigning...' : 'Assign Shift'}
+															</button>
+														</>
 													)}
 												</div>
 											</td>
@@ -1084,23 +1164,23 @@ export default function ShiftsPage() {
 									</div>
 
 									<div>
-										<label htmlFor="teamMemberId" className="block text-sm font-medium text-slate-700 mb-2">
+										<label htmlFor="staffMemberId" className="block text-sm font-medium text-slate-700 mb-2">
 											Assign Team Member
 										</label>
 										<select
-											id="teamMemberId"
+											id="staffMemberId"
 											className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-											{...register('teamMemberId')}
+											{...register('staffMemberId')}
 										>
 											<option value="">Select a team member</option>
-											{teamMembers.map((member) => (
+											{staffMembers.map((member) => (
 												<option key={member.id} value={member.id}>
 													{member.name}
 												</option>
 											))}
 										</select>
-										{errors.teamMemberId && (
-											<p className="mt-1 text-sm text-red-600">{errors.teamMemberId.message}</p>
+										{errors.staffMemberId && (
+											<p className="mt-1 text-sm text-red-600">{errors.staffMemberId.message}</p>
 										)}
 									</div>
 
@@ -1369,47 +1449,44 @@ export default function ShiftsPage() {
 					</div>
 				)}
 
-				{/* Send To Modal */}
+				{/* Notify Modal */}
 				{isSendToModalOpen && (
 					<div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
 						<div className="bg-white rounded-lg shadow-xl max-w-md w-full">
 							<div className="p-6">
 								<div className="mb-6">
-									<h2 className="text-2xl font-bold text-slate-900">Send To Team Member</h2>
-									<p className="text-sm text-slate-600 mt-1">Select one or more team members to send this shift to</p>
+									<h2 className="text-2xl font-bold text-slate-900">Notify Staff Member</h2>
+									<p className="text-sm text-slate-600 mt-1">View notified staff members for this shift</p>
 								</div>
 
 								<div className="mb-6">
 									<label className="block text-sm font-medium text-slate-700 mb-3">
-										Select Team Member(s) *
+										Notified Staff Members
 									</label>
 									<div className="border border-slate-300 rounded-lg max-h-60 overflow-y-auto p-2">
-										{teamMembers.length === 0 ? (
-											<p className="text-sm text-slate-500 p-4 text-center">No team members available</p>
+										{selectedStaffMemberIds.length === 0 ? (
+											<p className="text-sm text-slate-500 p-4 text-center">No staff members have been notified for this shift</p>
 										) : (
-											teamMembers.map((member) => (
-												<label
-													key={member.id}
-													className="flex items-center p-3 hover:bg-slate-50 rounded-lg cursor-pointer"
-												>
-													<input
-														type="checkbox"
-														checked={selectedTeamMemberIds.includes(member.id)}
-														onChange={() => handleTeamMemberToggle(member.id)}
-														className="w-4 h-4 text-blue-600 border-slate-300 rounded focus:ring-blue-500 focus:ring-2 cursor-pointer"
-													/>
-													<span className="ml-3 text-sm text-slate-900">{member.name}</span>
-												</label>
-											))
+											selectedStaffMemberIds.map((memberId) => {
+												const member = staffMembers.find(m => m.id === memberId)
+												return member ? (
+													<div
+														key={member.id}
+														className="flex items-center p-3 bg-slate-50 rounded-lg"
+													>
+														<svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+															<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+														</svg>
+														<span className="ml-3 text-sm text-slate-900">{member.name}</span>
+													</div>
+												) : null
+											})
 										)}
 									</div>
-									{selectedTeamMemberIds.length > 0 && (
+									{selectedStaffMemberIds.length > 0 && (
 										<p className="mt-2 text-xs text-slate-500">
-											{selectedTeamMemberIds.length} team member(s) selected
+											{selectedStaffMemberIds.length} staff member(s) notified
 										</p>
-									)}
-									{error && selectedTeamMemberIds.length === 0 && error.includes('team member') && (
-										<p className="mt-1 text-sm text-red-600">{error}</p>
 									)}
 								</div>
 
@@ -1419,20 +1496,25 @@ export default function ShiftsPage() {
 										onClick={() => {
 											setIsSendToModalOpen(false)
 											setSendingToShiftId(null)
-											setSelectedTeamMemberIds([])
+											setSelectedStaffMemberIds([])
 											setError(null)
 										}}
 										className="px-6 py-2.5 border border-slate-300 text-slate-700 font-medium rounded-lg hover:bg-slate-50 transition-colors"
 									>
 										Cancel
 									</button>
+									{/* Removed Notify Staff button - modal is now view-only */}
 									<button
 										type="button"
-										onClick={handleConfirmSendTo}
-										disabled={publishingShiftId === sendingToShiftId || selectedTeamMemberIds.length === 0}
-										className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+										onClick={() => {
+											setIsSendToModalOpen(false)
+											setSendingToShiftId(null)
+											setSelectedStaffMemberIds([])
+											setError(null)
+										}}
+										className="px-6 py-2.5 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors ml-auto"
 									>
-										{publishingShiftId === sendingToShiftId ? 'Sending...' : 'Send'}
+										Close
 									</button>
 								</div>
 							</div>

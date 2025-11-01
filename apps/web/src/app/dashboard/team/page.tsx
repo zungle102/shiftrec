@@ -7,11 +7,11 @@ import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import { zodResolver } from '@hookform/resolvers/zod'
 
-const teamMemberSchema = z.object({
+const staffMemberSchema = z.object({
 	name: z.string().min(1, 'Name is required').max(100, 'Name is too long'),
 	email: z.string().email('Invalid email address').max(200),
 	phone: z.string().max(20, 'Phone number is too long').optional().or(z.literal('')),
-	idType: z.string().max(50, 'ID Type is too long').optional().or(z.literal('')),
+	idTypeId: z.string().max(50, 'ID Type is too long').optional().or(z.literal('')),
 	idNumber: z.string().max(100, 'ID Number is too long').optional().or(z.literal('')),
 	address: z.string().max(200, 'Address is too long').optional().or(z.literal('')),
 	suburb: z.string().max(100, 'Suburb is too long').optional().or(z.literal('')),
@@ -19,14 +19,15 @@ const teamMemberSchema = z.object({
 	postcode: z.string().max(10, 'Postcode is too long').optional().or(z.literal(''))
 })
 
-type TeamMemberFormValues = z.infer<typeof teamMemberSchema>
+type StaffMemberFormValues = z.infer<typeof staffMemberSchema>
 
-interface TeamMember {
+interface StaffMember {
 	id: string
 	name: string
 	email: string
 	phone: string
 	idType: string
+	idTypeId: string
 	idNumber: string
 	address: string
 	suburb: string
@@ -38,27 +39,34 @@ interface TeamMember {
 	updatedAt: string
 }
 
+interface IdType {
+	id: string
+	name: string
+	order: number
+}
+
 export default function ManageTeamPage() {
 	const { data: session } = useSession()
 	const router = useRouter()
-	const [members, setMembers] = useState<TeamMember[]>([])
+	const [members, setMembers] = useState<StaffMember[]>([])
+	const [idTypes, setIdTypes] = useState<IdType[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [isModalOpen, setIsModalOpen] = useState(false)
-	const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
+	const [editingMember, setEditingMember] = useState<StaffMember | null>(null)
 	const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null)
 	const [togglingMemberId, setTogglingMemberId] = useState<string | null>(null)
 	const [restoringMemberId, setRestoringMemberId] = useState<string | null>(null)
 	const [openDropdownId, setOpenDropdownId] = useState<string | null>(null)
 	const [showInactive, setShowInactive] = useState(false)
 
-	const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<TeamMemberFormValues>({
-		resolver: zodResolver(teamMemberSchema),
+	const { register, handleSubmit, formState: { errors, isSubmitting }, reset } = useForm<StaffMemberFormValues>({
+		resolver: zodResolver(staffMemberSchema),
 		defaultValues: {
 			name: '',
 			email: '',
 			phone: '',
-			idType: '',
+			idTypeId: '',
 			idNumber: '',
 			address: '',
 			suburb: '',
@@ -72,8 +80,28 @@ export default function ManageTeamPage() {
 			router.push('/signin')
 			return
 		}
-		fetchTeamMembers()
+		fetchStaffMembers()
+		fetchIdTypes()
 	}, [session, router, showInactive])
+
+	const fetchIdTypes = async () => {
+		try {
+			const { api } = await import('../../../lib/api')
+			const data = await api.getIdTypes()
+			setIdTypes(data)
+		} catch (err) {
+			console.error('Failed to load ID types:', err)
+			// Fallback to hardcoded values if API fails
+			setIdTypes([
+				{ id: '1', name: "Australian Driver's License", order: 1 },
+				{ id: '2', name: "Oversea Driver's License", order: 2 },
+				{ id: '3', name: "Australian Passport", order: 3 },
+				{ id: '4', name: "Oversea Passport", order: 4 },
+				{ id: '5', name: "Australian Visa", order: 5 },
+				{ id: '6', name: "Others", order: 6 }
+			])
+		}
+	}
 
 	// Close dropdown when clicking outside
 	useEffect(() => {
@@ -88,21 +116,21 @@ export default function ManageTeamPage() {
 		}
 	}, [openDropdownId])
 
-	const fetchTeamMembers = async () => {
+	const fetchStaffMembers = async () => {
 		if (!session?.user?.email) return
 		
 		setLoading(true)
 		setError(null)
 		try {
 			const { api } = await import('../../../lib/api')
-			const data = await api.getTeamMembers(session.user.email)
+			const data = await api.getStaffMembers(session.user.email)
 			// Filter by inactive status if needed (exclude archived items)
 			const filtered = showInactive 
 				? data.filter(member => !member.archived) 
 				: data.filter(member => !member.archived && member.active !== false)
 			setMembers(filtered)
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to load team members')
+			setError(err instanceof Error ? err.message : 'Failed to load staff members')
 		} finally {
 			setLoading(false)
 		}
@@ -114,7 +142,7 @@ export default function ManageTeamPage() {
 			name: '',
 			email: '',
 			phone: '',
-			idType: '',
+			idTypeId: '',
 			idNumber: '',
 			address: '',
 			suburb: '',
@@ -124,13 +152,13 @@ export default function ManageTeamPage() {
 		setIsModalOpen(true)
 	}
 
-	const openEditModal = (member: TeamMember) => {
+	const openEditModal = (member: StaffMember) => {
 		setEditingMember(member)
 		reset({
 			name: member.name,
 			email: member.email,
 			phone: member.phone || '',
-			idType: member.idType || '',
+			idTypeId: member.idTypeId || '',
 			idNumber: member.idNumber || '',
 			address: member.address || '',
 			suburb: member.suburb || '',
@@ -145,37 +173,40 @@ export default function ManageTeamPage() {
 		setEditingMember(null)
 	}
 
-	const onSubmit = async (values: TeamMemberFormValues) => {
+	const onSubmit = async (values: StaffMemberFormValues) => {
 		if (!session?.user?.email) return
 
 		setError(null)
 		try {
 			const { api } = await import('../../../lib/api')
+			// Convert form values to API format (idTypeId instead of idType)
+			const apiValues = { ...values, idTypeId: values.idTypeId || '' }
+			delete (apiValues as any).idType
 			
 			if (editingMember) {
-				await api.updateTeamMember(session.user.email, editingMember.id, values)
+				await api.updateStaffMember(session.user.email, editingMember.id, apiValues)
 			} else {
-				await api.createTeamMember(session.user.email, values)
+				await api.createStaffMember(session.user.email, apiValues)
 			}
 
 			closeModal()
-			fetchTeamMembers()
+			fetchStaffMembers()
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to save team member')
+			setError(err instanceof Error ? err.message : 'Failed to save staff member')
 		}
 	}
 
 	const handleDelete = async (memberId: string) => {
 		if (!session?.user?.email) return
-		if (!confirm('Are you sure you want to archive this team member?')) return
+		if (!confirm('Are you sure you want to archive this staff member?')) return
 
 		setDeletingMemberId(memberId)
 		try {
 			const { api } = await import('../../../lib/api')
-			await api.deleteTeamMember(session.user.email, memberId)
-			fetchTeamMembers()
+			await api.deleteStaffMember(session.user.email, memberId)
+			fetchStaffMembers()
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to archive team member')
+			setError(err instanceof Error ? err.message : 'Failed to archive staff member')
 		} finally {
 			setDeletingMemberId(null)
 		}
@@ -188,7 +219,7 @@ export default function ManageTeamPage() {
 		setError(null)
 		try {
 			const { api } = await import('../../../lib/api')
-			const result = await api.toggleTeamMemberActive(session.user.email, memberId)
+			const result = await api.toggleStaffMemberActive(session.user.email, memberId)
 			// Update the member in the local state
 			setMembers(members.map(member => 
 				member.id === memberId ? { ...member, active: result.active } : member
@@ -207,10 +238,10 @@ export default function ManageTeamPage() {
 		setError(null)
 		try {
 			const { api } = await import('../../../lib/api')
-			await api.restoreTeamMember(session.user.email, memberId)
-			fetchTeamMembers()
+			await api.restoreStaffMember(session.user.email, memberId)
+			fetchStaffMembers()
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to restore team member')
+			setError(err instanceof Error ? err.message : 'Failed to restore staff member')
 		} finally {
 			setRestoringMemberId(null)
 		}
@@ -290,7 +321,7 @@ export default function ManageTeamPage() {
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ID Type</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">ID Number</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+										<th></th>
 									</tr>
 								</thead>
 								<tbody className="bg-white divide-y divide-gray-200">
@@ -470,23 +501,23 @@ export default function ManageTeamPage() {
 									</div>
 
 									<div>
-										<label htmlFor="idType" className="block text-sm font-medium text-slate-700 mb-2">
+										<label htmlFor="idTypeId" className="block text-sm font-medium text-slate-700 mb-2">
 											ID Type
 										</label>
 										<select
-											id="idType"
+											id="idTypeId"
 											className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-											{...register('idType')}
+											{...register('idTypeId')}
 										>
 											<option value="">Select ID Type</option>
-											<option value="Australian Driver's License">Australian Driver's License</option>
-											<option value="Oversea Driver's License">Oversea Driver's License</option>
-											<option value="Australian Passport">Australian Passport</option>
-											<option value="Oversea Passport">Oversea Passport</option>
-											<option value="Others">Others</option>
+											{idTypes.map((type) => (
+												<option key={type.id} value={type.id}>
+													{type.name}
+												</option>
+											))}
 										</select>
-										{errors.idType && (
-											<p className="mt-1 text-sm text-red-600">{errors.idType.message}</p>
+										{errors.idTypeId && (
+											<p className="mt-1 text-sm text-red-600">{errors.idTypeId.message}</p>
 										)}
 									</div>
 

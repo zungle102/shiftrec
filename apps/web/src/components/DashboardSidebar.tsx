@@ -22,7 +22,7 @@ const navigation = [
 		)
 	},
 	{
-		name: 'Manage Team',
+		name: 'Manage Staff',
 		href: '/dashboard/team',
 		icon: (
 			<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -36,15 +36,6 @@ const navigation = [
 		icon: (
 			<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-			</svg>
-		)
-	},
-	{
-		name: 'Archived Data',
-		href: '/dashboard/archived',
-		icon: (
-			<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-				<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
 			</svg>
 		)
 	},
@@ -63,6 +54,15 @@ const navigation = [
 		icon: (
 			<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
 				<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+			</svg>
+		)
+	},
+	{
+		name: 'Archived Data',
+		href: '/dashboard/archived',
+		icon: (
+			<svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+				<path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
 			</svg>
 		)
 	},
@@ -88,22 +88,29 @@ export function DashboardSidebar() {
 					{navigation.map((item) => {
 						const isActive = pathname === item.href || (item.href !== '/' && pathname?.startsWith(item.href))
 						return (
-							<Link
-								key={item.name}
-								href={item.href}
-								className={`
-									flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200
-									${isActive
-										? 'bg-blue-500 text-white font-bold border-l-4 border-orange-500 shadow-lg'
-										: 'text-slate-700 hover:bg-blue-50 hover:text-blue-700 font-semibold'
-									}
-								`}
-							>
-								<span className={isActive ? 'text-white' : 'text-slate-500'}>
-									{item.icon}
-								</span>
-								<span>{item.name}</span>
-							</Link>
+							<div key={item.name}>
+								{item.name === 'Time Tracking' && (
+									<div className="my-3 border-t border-slate-200"></div>
+								)}
+								{item.name === 'Settings' && (
+									<div className="my-3 border-t border-slate-200"></div>
+								)}
+								<Link
+									href={item.href}
+									className={`
+										flex items-center space-x-3 px-3 py-2.5 rounded-lg transition-all duration-200
+										${isActive
+											? 'bg-blue-500 text-white font-bold border-l-4 border-orange-500 shadow-lg'
+											: 'text-slate-700 hover:bg-blue-50 hover:text-blue-700 font-semibold'
+										}
+									`}
+								>
+									<span className={isActive ? 'text-white' : 'text-slate-500'}>
+										{item.icon}
+									</span>
+									<span>{item.name}</span>
+								</Link>
+							</div>
 						)
 					})}
 				</nav>

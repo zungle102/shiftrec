@@ -7,34 +7,224 @@ import { ObjectId } from 'mongodb'
 export class ShiftService {
 	constructor(private readonly databaseService: DatabaseService) {}
 
-	async getShifts(ownerEmail: string, includeArchived: boolean = false) {
+	async getShifts(ownerEmail: string, includeArchived: boolean = false, page: number = 1, limit: number = 100) {
 		const db = await this.databaseService.getDb()
 		const query: any = { ownerEmail }
 		if (!includeArchived) {
 			query.archived = { $ne: true }
 		}
+		
+		// Calculate pagination
+		const skip = (page - 1) * limit
+		
+		// Fetch shifts with pagination
 		const shifts = await db.collection('shifts').find(
 			query,
-			{ sort: { serviceDate: -1, startTime: -1 } }
+			{ 
+				sort: { serviceDate: -1, startTime: -1 },
+				skip,
+				limit
+			}
 		).toArray()
 
-		return Promise.all(shifts.map(async shift => {
-			// Support both single teamMemberId and array teamMemberIds
-			const teamMemberIds = shift.teamMemberIds || (shift.teamMemberId ? [shift.teamMemberId] : [])
-			
-			// Fetch all team member names
-			const teamMemberNames: string[] = []
-			if (teamMemberIds.length > 0) {
-				const teamMembers = await db.collection('teamMembers').find({
-					_id: { $in: teamMemberIds.map((id: string) => new ObjectId(id)) },
-					ownerEmail
-				}).toArray()
-				teamMemberNames.push(...teamMembers.map(tm => tm.name))
+		// PERFORMANCE OPTIMIZATION: Batch fetch all related data to avoid N+1 queries
+		// Collect all unique IDs
+		const allStaffMemberIds = new Set<string>()
+		const allClientIds = new Set<string>()
+		const allClientTypeIds = new Set<string>()
+		const clientNameMap = new Map<string, string>() // For backward compatibility lookup
+		
+		for (const shift of shifts) {
+			// Collect staff member IDs
+			const rawNotifiedStaffMemberIds = shift.notifiedStaffMemberIds || shift.notifiedTeamMemberIds || shift.teamMemberIds || (shift.teamMemberId ? [shift.teamMemberId] : [])
+			for (const id of rawNotifiedStaffMemberIds) {
+				if (id) {
+					const idStr = id instanceof ObjectId ? id.toString() : String(id)
+					if (idStr && idStr !== 'null' && idStr !== 'undefined') {
+						allStaffMemberIds.add(idStr)
+					}
+				}
 			}
 			
-			// For backward compatibility, keep single teamMemberId and teamMemberName
-			const teamMemberId = teamMemberIds.length > 0 ? teamMemberIds[0] : ''
-			const teamMemberName = teamMemberNames.length > 0 ? teamMemberNames[0] : ''
+			// Collect client IDs
+			if (shift.clientId) {
+				const clientIdStr = shift.clientId instanceof ObjectId ? shift.clientId.toString() : String(shift.clientId)
+				allClientIds.add(clientIdStr)
+			}
+			
+			// Collect client names for backward compatibility lookup
+			if (shift.clientName && !shift.clientId) {
+				clientNameMap.set(shift.clientName, shift.clientName)
+			}
+		}
+
+		// Batch fetch all staff members
+		const staffMemberMap = new Map<string, any>()
+		if (allStaffMemberIds.size > 0) {
+			const staffMemberObjectIds = Array.from(allStaffMemberIds)
+				.filter((id: string) => ObjectId.isValid(id))
+				.map((id: string) => new ObjectId(id))
+			
+			if (staffMemberObjectIds.length > 0) {
+				const staffMembers = await db.collection('staffMembers').find({
+					_id: { $in: staffMemberObjectIds },
+					ownerEmail
+				}, {
+					projection: { name: 1, _id: 1 } // Only fetch needed fields
+				}).toArray()
+				
+				for (const member of staffMembers) {
+					staffMemberMap.set(member._id.toString(), member)
+				}
+			}
+		}
+
+		// Batch fetch all clients (by ID and by name for backward compatibility)
+		const clientMap = new Map<string, any>()
+		if (allClientIds.size > 0) {
+			const clientObjectIds = Array.from(allClientIds)
+				.filter((id: string) => ObjectId.isValid(id))
+				.map((id: string) => new ObjectId(id))
+			
+			if (clientObjectIds.length > 0) {
+				const clientsById = await db.collection('clients').find({
+					_id: { $in: clientObjectIds },
+					ownerEmail
+				}, {
+					projection: { name: 1, address: 1, suburb: 1, state: 1, postcode: 1, email: 1, phoneNumber: 1, contactPerson: 1, contactPhone: 1, clientTypeId: 1, _id: 1 }
+				}).toArray()
+				
+				for (const client of clientsById) {
+					clientMap.set(client._id.toString(), client)
+				}
+			}
+		}
+		
+		// Batch fetch clients by name for backward compatibility
+		if (clientNameMap.size > 0) {
+			const clientNames = Array.from(clientNameMap.keys())
+			const clientsByName = await db.collection('clients').find({
+				name: { $in: clientNames },
+				ownerEmail
+			}, {
+				projection: { name: 1, address: 1, suburb: 1, state: 1, postcode: 1, email: 1, phoneNumber: 1, contactPerson: 1, contactPhone: 1, clientTypeId: 1, _id: 1 }
+			}).toArray()
+			
+			for (const client of clientsByName) {
+				clientMap.set(client.name, client) // Store by name for lookup
+				clientMap.set(client._id.toString(), client) // Also store by ID
+			}
+		}
+
+		// Batch fetch all client types
+		if (clientMap.size > 0) {
+			const clientTypeObjectIds: ObjectId[] = []
+			for (const client of clientMap.values()) {
+				if (client.clientTypeId) {
+					const typeId = client.clientTypeId instanceof ObjectId ? client.clientTypeId : new ObjectId(client.clientTypeId.toString())
+					if (!allClientTypeIds.has(typeId.toString())) {
+						allClientTypeIds.add(typeId.toString())
+						clientTypeObjectIds.push(typeId)
+					}
+				}
+			}
+			
+			if (clientTypeObjectIds.length > 0) {
+				const clientTypes = await db.collection('clientTypes').find({
+					_id: { $in: clientTypeObjectIds }
+				}, {
+					projection: { name: 1, _id: 1 }
+				}).toArray()
+				
+				const clientTypeMap = new Map<string, string>()
+				for (const ct of clientTypes) {
+					clientTypeMap.set(ct._id.toString(), ct.name)
+				}
+				
+				// Attach client type names to clients
+				for (const [key, client] of clientMap.entries()) {
+					if (client.clientTypeId) {
+						const typeIdStr = client.clientTypeId instanceof ObjectId ? client.clientTypeId.toString() : String(client.clientTypeId)
+						client.clientTypeName = clientTypeMap.get(typeIdStr) || ''
+					}
+				}
+			}
+		}
+
+		// Now map shifts using the pre-fetched data
+		return shifts.map(shift => {
+			// Handle confirmedStaffMemberId (the assigned/confirmed staff member)
+			let confirmedStaffMemberId: string = ''
+			let confirmedStaffMemberName: string = ''
+			if (shift.confirmedStaffMemberId) {
+				const confirmedId = shift.confirmedStaffMemberId instanceof ObjectId 
+					? shift.confirmedStaffMemberId.toString() 
+					: String(shift.confirmedStaffMemberId)
+				if (confirmedId && confirmedId !== 'null' && confirmedId !== 'undefined') {
+					confirmedStaffMemberId = confirmedId
+					const member = staffMemberMap.get(confirmedId)
+					if (member) {
+						confirmedStaffMemberName = member.name
+					}
+				}
+			}
+			
+			// Support both single teamMemberId and array notifiedTeamMemberIds (backward compatibility with teamMemberIds)
+			// Handle both ObjectId and string formats from database
+			const rawNotifiedStaffMemberIds = shift.notifiedStaffMemberIds || shift.notifiedTeamMemberIds || shift.teamMemberIds || (shift.teamMemberId ? [shift.teamMemberId] : [])
+			const notifiedStaffMemberIds = rawNotifiedStaffMemberIds
+				.map((id: any) => {
+					if (id instanceof ObjectId) {
+						return id.toString()
+					}
+					return String(id)
+				})
+				.filter((id: string) => id && id !== 'null' && id !== 'undefined')
+			
+			// Get staff member names from pre-fetched map for notified members
+			const staffMemberNames: string[] = []
+			for (const id of notifiedStaffMemberIds) {
+				const member = staffMemberMap.get(id)
+				if (member) {
+					staffMemberNames.push(member.name)
+				}
+			}
+			
+			// Use confirmedStaffMemberId if available, otherwise fall back to first notified member (for backward compatibility)
+			const staffMemberId = confirmedStaffMemberId || (notifiedStaffMemberIds.length > 0 ? notifiedStaffMemberIds[0] : '')
+			const staffMemberName = confirmedStaffMemberName || (staffMemberNames.length > 0 ? staffMemberNames[0] : '')
+
+			// Populate client data from pre-fetched map
+			let clientName = shift.clientName || ''
+			let clientLocation = shift.clientLocation || ''
+			let clientType = shift.clientType || ''
+			let clientEmail = shift.clientEmail || ''
+			let clientPhoneNumber = shift.clientPhoneNumber || ''
+			let clientContactPerson = shift.clientContactPerson || ''
+			let clientContactPhone = shift.clientContactPhone || ''
+			let clientId: string | null = null
+
+			// If clientId exists, use pre-fetched client data
+			if (shift.clientId) {
+				const clientIdStr = shift.clientId instanceof ObjectId ? shift.clientId.toString() : String(shift.clientId)
+				const client = clientMap.get(clientIdStr)
+				if (client) {
+					clientId = client._id.toString()
+					clientName = client.name || clientName
+					clientLocation = client.address ? `${client.address}${client.suburb ? ', ' + client.suburb : ''}${client.state ? ', ' + client.state : ''}${client.postcode ? ' ' + client.postcode : ''}`.trim() : clientLocation
+					clientType = client.clientTypeName || clientType
+					clientEmail = client.email || clientEmail
+					clientPhoneNumber = client.phoneNumber || clientPhoneNumber
+					clientContactPerson = client.contactPerson || clientContactPerson
+					clientContactPhone = client.contactPhone || clientContactPhone
+				}
+			} else if (shift.clientName) {
+				// Backward compatibility: try to find clientId from clientName in pre-fetched map
+				const client = clientMap.get(shift.clientName)
+				if (client && client._id) {
+					clientId = client._id.toString()
+				}
+			}
 
 			return {
 				id: shift._id.toString(),
@@ -43,17 +233,18 @@ export class ShiftService {
 				endTime: shift.endTime,
 				breakDuration: shift.breakDuration || '0',
 				serviceType: shift.serviceType || '',
-				clientName: shift.clientName,
-				clientLocation: shift.clientLocation || '',
-				clientType: shift.clientType || '',
-				clientEmail: shift.clientEmail || '',
-				clientPhoneNumber: shift.clientPhoneNumber || '',
-				clientContactPerson: shift.clientContactPerson || '',
-				clientContactPhone: shift.clientContactPhone || '',
-				teamMemberId: teamMemberId,
-				teamMemberName: teamMemberName,
-				teamMemberIds: teamMemberIds,
-				teamMemberNames: teamMemberNames,
+				clientId: clientId,
+				clientName: clientName,
+				clientLocation: clientLocation,
+				clientType: clientType,
+				clientEmail: clientEmail,
+				clientPhoneNumber: clientPhoneNumber,
+				clientContactPerson: clientContactPerson,
+				clientContactPhone: clientContactPhone,
+				staffMemberId: staffMemberId,
+				staffMemberName: staffMemberName,
+				notifiedStaffMemberIds: notifiedStaffMemberIds,
+				staffMemberNames: staffMemberNames,
 				status: shift.status || 'Drafted',
 				note: shift.note || '',
 				archived: shift.archived || false,
@@ -71,7 +262,7 @@ export class ShiftService {
 				createdAt: shift.createdAt ? (shift.createdAt instanceof Date ? shift.createdAt.toISOString() : shift.createdAt) : new Date().toISOString(),
 				updatedAt: shift.updatedAt ? (shift.updatedAt instanceof Date ? shift.updatedAt.toISOString() : shift.updatedAt) : new Date().toISOString()
 			}
-		}))
+		})
 	}
 
 	async getShift(ownerEmail: string, shiftId: string) {
@@ -85,22 +276,92 @@ export class ShiftService {
 			throw new NotFoundException('Shift not found')
 		}
 
-		// Support both single teamMemberId and array teamMemberIds
-		const teamMemberIds = shift.teamMemberIds || (shift.teamMemberId ? [shift.teamMemberId] : [])
-		
-		// Fetch all team member names
-		const teamMemberNames: string[] = []
-		if (teamMemberIds.length > 0) {
-			const teamMembers = await db.collection('teamMembers').find({
-				_id: { $in: teamMemberIds.map((id: string) => new ObjectId(id)) },
-				ownerEmail
-			}).toArray()
-			teamMemberNames.push(...teamMembers.map(tm => tm.name))
+		// Handle confirmedStaffMemberId (the assigned/confirmed staff member)
+		let confirmedStaffMemberId: string = ''
+		let confirmedStaffMemberName: string = ''
+		if (shift.confirmedStaffMemberId) {
+			const confirmedId = shift.confirmedStaffMemberId instanceof ObjectId 
+				? shift.confirmedStaffMemberId.toString() 
+				: String(shift.confirmedStaffMemberId)
+			if (confirmedId && confirmedId !== 'null' && confirmedId !== 'undefined') {
+				confirmedStaffMemberId = confirmedId
+				const member = await db.collection('staffMembers').findOne({
+					_id: new ObjectId(confirmedId),
+					ownerEmail
+				})
+				if (member) {
+					confirmedStaffMemberName = member.name
+				}
+			}
 		}
 		
-		// For backward compatibility, keep single teamMemberId and teamMemberName
-		const teamMemberId = teamMemberIds.length > 0 ? teamMemberIds[0] : ''
-		const teamMemberName = teamMemberNames.length > 0 ? teamMemberNames[0] : ''
+		// Support both single teamMemberId and array notifiedTeamMemberIds (backward compatibility with teamMemberIds)
+		// Handle both ObjectId and string formats from database
+		const rawNotifiedStaffMemberIds = shift.notifiedStaffMemberIds || shift.notifiedTeamMemberIds || shift.teamMemberIds || (shift.teamMemberId ? [shift.teamMemberId] : [])
+		const notifiedStaffMemberIds = rawNotifiedStaffMemberIds.map((id: any) => {
+			// Convert ObjectId to string if needed
+			if (id instanceof ObjectId) {
+				return id.toString()
+			}
+			return id.toString()
+		}).filter((id: string) => id && id !== 'null' && id !== 'undefined')
+		
+		// Fetch all team member names
+		const staffMemberNames: string[] = []
+		if (notifiedStaffMemberIds.length > 0) {
+			const staffMembers = await db.collection('staffMembers').find({
+				_id: { $in: notifiedStaffMemberIds.map((id: string) => new ObjectId(id)) },
+				ownerEmail
+			}).toArray()
+			staffMemberNames.push(...staffMembers.map(tm => tm.name))
+		}
+		
+		// Use confirmedStaffMemberId if available, otherwise fall back to first notified member (for backward compatibility)
+		const staffMemberId = confirmedStaffMemberId || (notifiedStaffMemberIds.length > 0 ? notifiedStaffMemberIds[0] : '')
+		const staffMemberName = confirmedStaffMemberName || (staffMemberNames.length > 0 ? staffMemberNames[0] : '')
+
+		// Populate client data from clientId reference (preferred) or use denormalized data (backward compatibility)
+		let clientName = shift.clientName || ''
+		let clientLocation = shift.clientLocation || ''
+		let clientType = shift.clientType || ''
+		let clientEmail = shift.clientEmail || ''
+		let clientPhoneNumber = shift.clientPhoneNumber || ''
+		let clientContactPerson = shift.clientContactPerson || ''
+		let clientContactPhone = shift.clientContactPhone || ''
+		let clientId: string | null = null
+
+		// If clientId exists, populate from clients collection
+		if (shift.clientId) {
+			const clientIdObj = shift.clientId instanceof ObjectId ? shift.clientId : new ObjectId(shift.clientId.toString())
+			const client = await db.collection('clients').findOne({
+				_id: clientIdObj,
+				ownerEmail
+			})
+			if (client) {
+				clientId = client._id.toString()
+				clientName = client.name || clientName
+				clientLocation = client.address ? `${client.address}${client.suburb ? ', ' + client.suburb : ''}${client.state ? ', ' + client.state : ''}${client.postcode ? ' ' + client.postcode : ''}`.trim() : clientLocation
+				// Get client type name from reference
+				if (client.clientTypeId) {
+					const clientTypeIdObj = client.clientTypeId instanceof ObjectId ? client.clientTypeId : new ObjectId(client.clientTypeId.toString())
+					const clientTypeDoc = await db.collection('clientTypes').findOne({ _id: clientTypeIdObj })
+					clientType = clientTypeDoc?.name || clientType
+				}
+				clientEmail = client.email || clientEmail
+				clientPhoneNumber = client.phoneNumber || clientPhoneNumber
+				clientContactPerson = client.contactPerson || clientContactPerson
+				clientContactPhone = client.contactPhone || clientContactPhone
+			}
+		} else if (shift.clientName) {
+			// Backward compatibility: try to find clientId from clientName
+			const client = await db.collection('clients').findOne({
+				name: shift.clientName,
+				ownerEmail
+			})
+			if (client) {
+				clientId = client._id.toString()
+			}
+		}
 
 		return {
 			id: shift._id.toString(),
@@ -109,17 +370,18 @@ export class ShiftService {
 			endTime: shift.endTime,
 			breakDuration: shift.breakDuration || '0',
 			serviceType: shift.serviceType || '',
-			clientName: shift.clientName,
-			clientLocation: shift.clientLocation || '',
-			clientType: shift.clientType || '',
-			clientEmail: shift.clientEmail || '',
-			clientPhoneNumber: shift.clientPhoneNumber || '',
-			clientContactPerson: shift.clientContactPerson || '',
-			clientContactPhone: shift.clientContactPhone || '',
-			teamMemberId: teamMemberId,
-			teamMemberName: teamMemberName,
-			teamMemberIds: teamMemberIds,
-			teamMemberNames: teamMemberNames,
+			clientId: clientId,
+			clientName: clientName,
+			clientLocation: clientLocation,
+			clientType: clientType,
+			clientEmail: clientEmail,
+			clientPhoneNumber: clientPhoneNumber,
+			clientContactPerson: clientContactPerson,
+			clientContactPhone: clientContactPhone,
+			staffMemberId: staffMemberId,
+			staffMemberName: staffMemberName,
+			notifiedStaffMemberIds: notifiedStaffMemberIds,
+			staffMemberNames: staffMemberNames,
 			note: shift.note || '',
 			archived: shift.archived || false,
 			archivedAt: shift.archivedAt || null,
@@ -141,7 +403,24 @@ export class ShiftService {
 	async createShift(ownerEmail: string, dto: any) {
 		const parsed = createShiftSchema.safeParse(dto)
 		if (!parsed.success) {
-			throw new BadRequestException('Invalid input')
+			console.error('=== CREATE SHIFT VALIDATION ERROR ===')
+			console.error('DTO received:', JSON.stringify(dto, null, 2))
+			console.error('Full validation error:', JSON.stringify(parsed.error, null, 2))
+			
+			const errors = parsed.error.errors.map(err => {
+				const path = err.path.length > 0 ? err.path.join('.') : 'root'
+				return `${path}: ${err.message}`
+			})
+			
+			const errorMessage = errors.length > 0 
+				? `Invalid input: ${errors.join('; ')}` 
+				: 'Invalid input'
+			
+			console.error('Constructed error message:', errorMessage)
+			console.error('Error count:', errors.length)
+			console.error('=====================================')
+			
+			throw new BadRequestException(errorMessage)
 		}
 
 		const {
@@ -150,40 +429,76 @@ export class ShiftService {
 			endTime,
 			breakDuration,
 			serviceType,
-			clientName,
-			clientLocation,
-			clientType,
-			clientEmail,
-			clientPhoneNumber,
-			clientContactPerson,
-			clientContactPhone,
-			teamMemberId,
-			teamMemberIds,
+			clientId,
+			staffMemberId,
+			notifiedStaffMemberIds,
 			status,
 			note
 		} = parsed.data
 
 		const db = await this.databaseService.getDb()
 
-		// Use teamMemberIds if provided, otherwise use teamMemberId for backward compatibility
-		const finalTeamMemberIds = teamMemberIds || (teamMemberId ? [teamMemberId] : [])
+		// Validate and resolve clientId - clientId is now required
+		let finalClientId: ObjectId | null = null
+
+		if (!clientId || clientId.trim() === '') {
+			throw new BadRequestException('Client ID is required')
+		}
+
+		// Validate that the client exists
+		try {
+			const client = await db.collection('clients').findOne({
+				_id: new ObjectId(clientId),
+				ownerEmail
+			})
+			if (!client) {
+				throw new BadRequestException(`Client with ID ${clientId} not found`)
+			}
+			finalClientId = client._id
+		} catch (error) {
+			if (error instanceof BadRequestException) {
+				throw error
+			}
+			throw new BadRequestException(`Invalid clientId: ${clientId}`)
+		}
+
+		// Use notifiedStaffMemberIds if provided, otherwise use staffMemberId
+		const finalStaffMemberIds = notifiedStaffMemberIds || (staffMemberId ? [staffMemberId] : [])
 		
-		// Fetch team member names
-		const teamMemberNames: string[] = []
-		if (finalTeamMemberIds.length > 0) {
-			const teamMembers = await db.collection('teamMembers').find({
-				_id: { $in: finalTeamMemberIds.map((id: string) => new ObjectId(id)) },
+		// Validate team member IDs if provided
+		if (finalStaffMemberIds.length > 0) {
+			const staffMembers = await db.collection('staffMembers').find({
+				_id: { $in: finalStaffMemberIds.map((id: string) => {
+					try {
+						return new ObjectId(id)
+					} catch {
+						throw new BadRequestException(`Invalid team member ID: ${id}`)
+					}
+				}) },
 				ownerEmail
 			}).toArray()
-			teamMemberNames.push(...teamMembers.map(tm => tm.name))
+			
+			if (staffMembers.length !== finalStaffMemberIds.length) {
+				throw new BadRequestException('One or more team member IDs not found')
+			}
 		}
 		
-		const singleTeamMemberId = finalTeamMemberIds.length > 0 ? finalTeamMemberIds[0] : ''
-		const teamMemberName = teamMemberNames.length > 0 ? teamMemberNames[0] : ''
+		// Fetch team member names
+		const staffMemberNames: string[] = []
+		if (finalStaffMemberIds.length > 0) {
+			const staffMembers = await db.collection('staffMembers').find({
+				_id: { $in: finalStaffMemberIds.map((id: string) => new ObjectId(id)) },
+				ownerEmail
+			}).toArray()
+			staffMemberNames.push(...staffMembers.map(tm => tm.name))
+		}
+		
+		const singleStaffMemberId = finalStaffMemberIds.length > 0 ? finalStaffMemberIds[0] : null
+		const staffMemberName = staffMemberNames.length > 0 ? staffMemberNames[0] : ''
 
 		const now = new Date()
 		// Use provided status, or auto-set to "Assigned" if team member is provided, otherwise "Drafted"
-		const finalStatus = status || (finalTeamMemberIds.length > 0 ? 'Assigned' : 'Drafted')
+		const finalStatus = status || (finalStaffMemberIds.length > 0 ? 'Assigned' : 'Drafted')
 		const result = await db.collection('shifts').insertOne({
 			ownerEmail,
 			serviceDate,
@@ -191,21 +506,22 @@ export class ShiftService {
 			endTime,
 			breakDuration: breakDuration || '0',
 			serviceType: serviceType || null,
-			clientName,
-			clientLocation: clientLocation || null,
-			clientType: clientType || null,
-			clientEmail: clientEmail || null,
-			clientPhoneNumber: clientPhoneNumber || null,
-			clientContactPerson: clientContactPerson || null,
-			clientContactPhone: clientContactPhone || null,
-			teamMemberId: singleTeamMemberId || null,
-			teamMemberIds: finalTeamMemberIds.length > 0 ? finalTeamMemberIds : null,
+			clientId: finalClientId, // Store only the ObjectId reference
+			confirmedStaffMemberId: singleStaffMemberId ? new ObjectId(singleStaffMemberId) : null,
+			notifiedStaffMemberIds: finalStaffMemberIds.length > 0 
+				? finalStaffMemberIds.map((id: string) => new ObjectId(id))
+				: null,
 			status: finalStatus,
 			note: note || null,
 			archived: false,
 			createdAt: now,
 			updatedAt: now
 		})
+
+		// Fetch client data to return in response (for display)
+		const client = await db.collection('clients').findOne({ _id: finalClientId, ownerEmail })
+		const clientTypeName = client?.clientTypeId ? (await db.collection('clientTypes').findOne({ _id: client.clientTypeId }))?.name || '' : ''
+		const clientLocation = client?.address ? `${client.address}${client.suburb ? ', ' + client.suburb : ''}${client.state ? ', ' + client.state : ''}${client.postcode ? ' ' + client.postcode : ''}`.trim() : ''
 
 		return {
 			id: result.insertedId.toString(),
@@ -214,26 +530,52 @@ export class ShiftService {
 			endTime,
 			breakDuration: breakDuration || '0',
 			serviceType: serviceType || '',
-			clientName,
-			clientLocation: clientLocation || '',
-			clientType: clientType || '',
-			clientEmail: clientEmail || '',
-			clientPhoneNumber: clientPhoneNumber || '',
-			clientContactPerson: clientContactPerson || '',
-			clientContactPhone: clientContactPhone || '',
-			teamMemberId: singleTeamMemberId,
-			teamMemberName: teamMemberName,
-			teamMemberIds: finalTeamMemberIds,
-			teamMemberNames: teamMemberNames,
+			clientId: finalClientId.toString(),
+			clientName: client?.name || '',
+			clientLocation: clientLocation,
+			clientType: clientTypeName,
+			clientEmail: client?.email || '',
+			clientPhoneNumber: client?.phoneNumber || '',
+			clientContactPerson: client?.contactPerson || '',
+			clientContactPhone: client?.contactPhone || '',
+			staffMemberId: singleStaffMemberId,
+			staffMemberName: staffMemberName,
+			notifiedStaffMemberIds: finalStaffMemberIds,
+			staffMemberNames: staffMemberNames,
 			status: finalStatus,
 			note: note || ''
 		}
 	}
 
 	async updateShift(ownerEmail: string, shiftId: string, dto: any) {
+		// Support both new and old field names for backward compatibility
+		if ('teamMemberId' in dto && !('staffMemberId' in dto)) {
+			dto.staffMemberId = dto.teamMemberId
+		}
+		if ('notifiedTeamMemberIds' in dto && !('notifiedStaffMemberIds' in dto)) {
+			dto.notifiedStaffMemberIds = dto.notifiedTeamMemberIds
+		}
 		const parsed = updateShiftSchema.safeParse(dto)
 		if (!parsed.success) {
-			throw new BadRequestException('Invalid input')
+			console.error('=== VALIDATION ERROR ===')
+			console.error('DTO received:', JSON.stringify(dto, null, 2))
+			console.error('Full validation error:', JSON.stringify(parsed.error, null, 2))
+			
+			const errors = parsed.error.errors.map(err => {
+				const path = err.path.length > 0 ? err.path.join('.') : 'root'
+				return `${path}: ${err.message}`
+			})
+			
+			const errorMessage = errors.length > 0 
+				? `Invalid input: ${errors.join('; ')}` 
+				: 'Invalid input'
+			
+			console.error('Constructed error message:', errorMessage)
+			console.error('Error count:', errors.length)
+			console.error('========================')
+			
+			// NestJS will put the string message in the 'message' field of the response
+			throw new BadRequestException(errorMessage)
 		}
 
 		const {
@@ -242,18 +584,15 @@ export class ShiftService {
 			endTime,
 			breakDuration,
 			serviceType,
-			clientName,
-			clientLocation,
-			clientType,
-			clientEmail,
-			clientPhoneNumber,
-			clientContactPerson,
-			clientContactPhone,
-			teamMemberId,
-			teamMemberIds,
+			clientId,
+			staffMemberId,
+			notifiedStaffMemberIds,
 			status,
 			note
 		} = parsed.data
+		// Support old field names for backward compatibility
+		const legacyStaffMemberId = staffMemberId || (dto as any).teamMemberId
+		const legacyNotifiedStaffMemberIds = notifiedStaffMemberIds || (dto as any).notifiedTeamMemberIds
 
 		const db = await this.databaseService.getDb()
 
@@ -271,20 +610,93 @@ export class ShiftService {
 			updatedAt: new Date()
 		}
 
-		// Handle teamMemberIds array (takes priority over single teamMemberId)
-		if (teamMemberIds !== undefined) {
-			updateData.teamMemberIds = teamMemberIds.length > 0 ? teamMemberIds : null
-			// Also set teamMemberId for backward compatibility (first one)
-			updateData.teamMemberId = teamMemberIds.length > 0 ? teamMemberIds[0] : null
-		} else if (teamMemberId !== undefined) {
-			// Handle single teamMemberId for backward compatibility
-			updateData.teamMemberId = teamMemberId || null
-			if (teamMemberId) {
-				// Convert single ID to array for consistency
-				const existingTeamMemberIds = existing.teamMemberIds || (existing.teamMemberId ? [existing.teamMemberId] : [])
-				updateData.teamMemberIds = [...new Set([...existingTeamMemberIds, teamMemberId])]
+		// Validate and update clientId if provided
+		if (clientId !== undefined) {
+			if (clientId && clientId.trim() !== '') {
+				// Validate that the client exists
+				try {
+					const client = await db.collection('clients').findOne({
+						_id: new ObjectId(clientId),
+						ownerEmail
+					})
+					if (!client) {
+						throw new BadRequestException(`Client with ID ${clientId} not found`)
+					}
+					updateData.clientId = client._id
+					// Client data is now always populated from clientId reference in the return value
+				} catch (error) {
+					if (error instanceof BadRequestException) {
+						throw error
+					}
+					throw new BadRequestException(`Invalid clientId: ${clientId}`)
+				}
 			} else {
-				updateData.teamMemberIds = null
+				// Clear clientId if empty string
+				updateData.clientId = null
+			}
+		}
+		// Note: Client name lookup for backward compatibility removed - clientId is now required
+
+		// Validate team member IDs if provided
+		if (notifiedStaffMemberIds !== undefined && notifiedStaffMemberIds.length > 0) {
+			// Validate all team member IDs exist
+			const staffMembers = await db.collection('staffMembers').find({
+				_id: { $in: notifiedStaffMemberIds.map((id: string) => {
+					try {
+						return new ObjectId(id)
+					} catch {
+						throw new BadRequestException(`Invalid team member ID: ${id}`)
+					}
+				}) },
+				ownerEmail
+			}).toArray()
+			
+			if (staffMembers.length !== notifiedStaffMemberIds.length) {
+				throw new BadRequestException('One or more team member IDs not found')
+			}
+		}
+		if (legacyStaffMemberId !== undefined && legacyStaffMemberId && legacyStaffMemberId.trim() !== '') {
+			// Validate single staff member ID exists
+			try {
+				const staffMember = await db.collection('staffMembers').findOne({
+					_id: new ObjectId(legacyStaffMemberId),
+					ownerEmail
+				})
+				if (!staffMember) {
+					throw new BadRequestException(`Staff member with ID ${legacyStaffMemberId} not found`)
+				}
+			} catch (error) {
+				if (error instanceof BadRequestException) {
+					throw error
+				}
+				throw new BadRequestException(`Invalid staff member ID: ${legacyStaffMemberId}`)
+			}
+		}
+
+		// Handle notifiedStaffMemberIds array (takes priority over single staffMemberId)
+		// Also support backward compatibility with old field names
+		if (legacyNotifiedStaffMemberIds !== undefined) {
+			// Convert string IDs to ObjectIds for MongoDB storage
+			updateData.notifiedStaffMemberIds = legacyNotifiedStaffMemberIds.length > 0 
+				? legacyNotifiedStaffMemberIds.map((id: string) => new ObjectId(id))
+				: null
+			// Also set confirmedStaffMemberId as ObjectId reference
+			updateData.confirmedStaffMemberId = legacyNotifiedStaffMemberIds.length > 0 ? new ObjectId(legacyNotifiedStaffMemberIds[0]) : null
+		} else if (legacyStaffMemberId !== undefined) {
+			// Handle single staffMemberId - store as ObjectId reference
+			if (legacyStaffMemberId && legacyStaffMemberId.trim() !== '') {
+				try {
+					updateData.confirmedStaffMemberId = new ObjectId(legacyStaffMemberId)
+					// Convert single ID to array for consistency
+					const existingNotifiedStaffMemberIds = existing.notifiedStaffMemberIds || existing.notifiedTeamMemberIds || existing.teamMemberIds || (existing.teamMemberId || existing.confirmedStaffMemberId ? [existing.teamMemberId || existing.confirmedStaffMemberId] : [])
+					const allIds = [...new Set([...existingNotifiedStaffMemberIds.map((id: any) => id instanceof ObjectId ? id.toString() : String(id)), legacyStaffMemberId])]
+					updateData.notifiedStaffMemberIds = allIds.map((id: string) => new ObjectId(id))
+				} catch {
+					throw new BadRequestException(`Invalid staff member ID: ${legacyStaffMemberId}`)
+				}
+			} else {
+				updateData.confirmedStaffMemberId = null
+				updateData.notifiedStaffMemberIds = null
 			}
 		}
 
@@ -293,22 +705,27 @@ export class ShiftService {
 		if (endTime !== undefined) updateData.endTime = endTime
 		if (breakDuration !== undefined) updateData.breakDuration = breakDuration || '0'
 		if (serviceType !== undefined) updateData.serviceType = serviceType || null
-		if (clientName !== undefined) updateData.clientName = clientName
-		if (clientLocation !== undefined) updateData.clientLocation = clientLocation || null
-		if (clientType !== undefined) updateData.clientType = clientType || null
-		if (clientEmail !== undefined) updateData.clientEmail = clientEmail || null
-		if (clientPhoneNumber !== undefined) updateData.clientPhoneNumber = clientPhoneNumber || null
-		if (clientContactPerson !== undefined) updateData.clientContactPerson = clientContactPerson || null
-		if (clientContactPhone !== undefined) updateData.clientContactPhone = clientContactPhone || null
-		if (teamMemberId !== undefined) {
-			updateData.teamMemberId = teamMemberId || null
-			// Automatically set status to "Assigned" if team member is assigned
-			if (teamMemberId && status === undefined) {
-				updateData.status = 'Assigned'
-				// Track assignedAt when team member is assigned (status changes to Assigned)
-				if (existing.status !== 'Assigned') {
-					updateData.assignedAt = new Date()
+		// Client fields are no longer in DTO - they are populated from clientId reference
+		// Note: staffMemberId handling is done above with notifiedStaffMemberIds logic
+		// This block is kept for backward compatibility but should not execute if notifiedStaffMemberIds was handled
+		if (legacyStaffMemberId !== undefined && updateData.confirmedStaffMemberId === undefined) {
+			// Store as ObjectId reference
+			if (legacyStaffMemberId && legacyStaffMemberId.trim() !== '') {
+				try {
+					updateData.confirmedStaffMemberId = new ObjectId(legacyStaffMemberId)
+					// Automatically set status to "Assigned" if staff member is assigned
+					if (status === undefined) {
+						updateData.status = 'Assigned'
+						// Track assignedAt when staff member is assigned (status changes to Assigned)
+						if (existing.status !== 'Assigned') {
+							updateData.assignedAt = new Date()
+						}
+					}
+				} catch {
+					throw new BadRequestException(`Invalid staff member ID: ${legacyStaffMemberId}`)
 				}
+			} else {
+				updateData.confirmedStaffMemberId = null
 			}
 		}
 		if (status !== undefined) {
@@ -347,26 +764,69 @@ export class ShiftService {
 		)
 
 		// Get final team member IDs and names
-		const finalTeamMemberIds = updateData.teamMemberIds !== undefined 
-			? (updateData.teamMemberIds || [])
-			: (existing.teamMemberIds || (existing.teamMemberId ? [existing.teamMemberId] : []))
+		// Handle both ObjectId and string formats from database
+		const rawFinalStaffMemberIds = updateData.notifiedStaffMemberIds !== undefined 
+			? (updateData.notifiedStaffMemberIds || [])
+			: (existing.notifiedStaffMemberIds || existing.notifiedStaffMemberIds || (existing.staffMemberId ? [existing.staffMemberId] : []))
 		
-		// Fetch all team member names
-		const teamMemberNames: string[] = []
-		if (finalTeamMemberIds.length > 0) {
-			const teamMembers = await db.collection('teamMembers').find({
-				_id: { $in: finalTeamMemberIds.map((id: string) => new ObjectId(id)) },
+		// Convert ObjectIds to strings for return value
+		const finalStaffMemberIds = rawFinalStaffMemberIds.map((id: any) => {
+			if (id instanceof ObjectId) {
+				return id.toString()
+			}
+			return id.toString()
+		})
+		
+		// Fetch all staff member names
+		const staffMemberNames: string[] = []
+		if (finalStaffMemberIds.length > 0) {
+			const staffMembers = await db.collection('staffMembers').find({
+				_id: { $in: finalStaffMemberIds.map((id: string) => new ObjectId(id)) },
 				ownerEmail
 			}).toArray()
-			teamMemberNames.push(...teamMembers.map(tm => tm.name))
+			staffMemberNames.push(...staffMembers.map(tm => tm.name))
 		}
 		
-		const singleTeamMemberId = finalTeamMemberIds.length > 0 ? finalTeamMemberIds[0] : ''
-		const teamMemberName = teamMemberNames.length > 0 ? teamMemberNames[0] : ''
+		const singleStaffMemberId = finalStaffMemberIds.length > 0 ? finalStaffMemberIds[0] : ''
+		const staffMemberName = staffMemberNames.length > 0 ? staffMemberNames[0] : ''
 
 		// Determine final status - if team member was assigned, use "Assigned", otherwise use provided status or existing status
-		const finalStatus = (teamMemberId && !status && teamMemberId) ? 'Assigned' : (status !== undefined ? status : existing.status || 'Drafted')
+		const finalStatus = (staffMemberId && !status && staffMemberId) ? 'Assigned' : (status !== undefined ? status : existing.status || 'Drafted')
 		
+		// Get final clientId (from updateData or existing)
+		const finalClientId = updateData.clientId !== undefined 
+			? (updateData.clientId ? updateData.clientId.toString() : null)
+			: (existing.clientId ? (existing.clientId instanceof ObjectId ? existing.clientId.toString() : existing.clientId.toString()) : null)
+
+		// Fetch client data to return in response (for display)
+		let clientName = ''
+		let clientLocation = ''
+		let clientType = ''
+		let clientEmail = ''
+		let clientPhoneNumber = ''
+		let clientContactPerson = ''
+		let clientContactPhone = ''
+		
+		if (finalClientId) {
+			const clientIdObj = new ObjectId(finalClientId)
+			const client = await db.collection('clients').findOne({ _id: clientIdObj, ownerEmail })
+			if (client) {
+				clientName = client.name || ''
+				clientLocation = client.address ? `${client.address}${client.suburb ? ', ' + client.suburb : ''}${client.state ? ', ' + client.state : ''}${client.postcode ? ' ' + client.postcode : ''}`.trim() : ''
+				clientEmail = client.email || ''
+				clientPhoneNumber = client.phoneNumber || ''
+				clientContactPerson = client.contactPerson || ''
+				clientContactPhone = client.contactPhone || ''
+				
+				// Get client type name
+				if (client.clientTypeId) {
+					const clientTypeIdObj = client.clientTypeId instanceof ObjectId ? client.clientTypeId : new ObjectId(client.clientTypeId.toString())
+					const clientTypeDoc = await db.collection('clientTypes').findOne({ _id: clientTypeIdObj })
+					clientType = clientTypeDoc?.name || ''
+				}
+			}
+		}
+
 		return {
 			id: shiftId,
 			serviceDate: updateData.serviceDate !== undefined ? updateData.serviceDate : existing.serviceDate,
@@ -374,17 +834,18 @@ export class ShiftService {
 			endTime: updateData.endTime !== undefined ? updateData.endTime : existing.endTime,
 			breakDuration: updateData.breakDuration !== undefined ? (updateData.breakDuration || '0') : (existing.breakDuration || '0'),
 			serviceType: updateData.serviceType !== undefined ? (updateData.serviceType || '') : (existing.serviceType || ''),
-			clientName: updateData.clientName !== undefined ? updateData.clientName : existing.clientName,
-			clientLocation: updateData.clientLocation !== undefined ? (updateData.clientLocation || '') : (existing.clientLocation || ''),
-			clientType: updateData.clientType !== undefined ? (updateData.clientType || '') : (existing.clientType || ''),
-			clientEmail: updateData.clientEmail !== undefined ? (updateData.clientEmail || '') : (existing.clientEmail || ''),
-			clientPhoneNumber: updateData.clientPhoneNumber !== undefined ? (updateData.clientPhoneNumber || '') : (existing.clientPhoneNumber || ''),
-			clientContactPerson: updateData.clientContactPerson !== undefined ? (updateData.clientContactPerson || '') : (existing.clientContactPerson || ''),
-			clientContactPhone: updateData.clientContactPhone !== undefined ? (updateData.clientContactPhone || '') : (existing.clientContactPhone || ''),
-			teamMemberId: singleTeamMemberId,
-			teamMemberName: teamMemberName,
-			teamMemberIds: finalTeamMemberIds,
-			teamMemberNames: teamMemberNames,
+			clientId: finalClientId,
+			clientName: clientName,
+			clientLocation: clientLocation,
+			clientType: clientType,
+			clientEmail: clientEmail,
+			clientPhoneNumber: clientPhoneNumber,
+			clientContactPerson: clientContactPerson,
+			clientContactPhone: clientContactPhone,
+			staffMemberId: singleStaffMemberId,
+			staffMemberName: staffMemberName,
+			notifiedStaffMemberIds: finalStaffMemberIds,
+			staffMemberNames: staffMemberNames,
 			status: updateData.status !== undefined ? updateData.status : finalStatus,
 			note: updateData.note !== undefined ? (updateData.note || '') : (existing.note || ''),
 			publishedAt: updateData.publishedAt !== undefined ? (updateData.publishedAt instanceof Date ? updateData.publishedAt.toISOString() : updateData.publishedAt) : (existing.publishedAt ? (existing.publishedAt instanceof Date ? existing.publishedAt.toISOString() : existing.publishedAt) : null),

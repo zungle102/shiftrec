@@ -21,7 +21,7 @@ interface Client {
 	archived: boolean
 }
 
-interface TeamMember {
+interface StaffMember {
 	id: string
 	name: string
 	email: string
@@ -38,7 +38,7 @@ interface Shift {
 	startTime: string
 	endTime: string
 	clientName: string
-	teamMemberName?: string
+	staffMemberName?: string
 	status?: string
 	archived?: boolean
 }
@@ -47,7 +47,7 @@ export default function ArchivedDataPage() {
 	const { data: session } = useSession()
 	const router = useRouter()
 	const [archivedClients, setArchivedClients] = useState<Client[]>([])
-	const [archivedTeamMembers, setArchivedTeamMembers] = useState<TeamMember[]>([])
+	const [archivedStaffMembers, setArchivedStaffMembers] = useState<StaffMember[]>([])
 	const [archivedShifts, setArchivedShifts] = useState<Shift[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
@@ -78,9 +78,9 @@ export default function ArchivedDataPage() {
 			const clients = await api.getClients(session.user.email, true)
 			setArchivedClients(clients.filter(client => client.archived))
 
-			// Fetch archived team members
-			const members = await api.getTeamMembers(session.user.email, true)
-			setArchivedTeamMembers(members.filter(member => member.archived))
+			// Fetch archived staff members
+			const members = await api.getStaffMembers(session.user.email, true)
+			setArchivedStaffMembers(members.filter(member => member.archived))
 
 			// Fetch archived shifts
 			const shifts = await api.getShifts(session.user.email, true)
@@ -108,17 +108,17 @@ export default function ArchivedDataPage() {
 		}
 	}
 
-	const handleRestoreTeamMember = async (memberId: string) => {
+	const handleRestoreStaffMember = async (memberId: string) => {
 		if (!session?.user?.email) return
 
 		setRestoringMemberId(memberId)
 		setError(null)
 		try {
 			const { api } = await import('../../../lib/api')
-			await api.restoreTeamMember(session.user.email, memberId)
+			await api.restoreStaffMember(session.user.email, memberId)
 			fetchArchivedData()
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to restore team member')
+			setError(err instanceof Error ? err.message : 'Failed to restore staff member')
 		} finally {
 			setRestoringMemberId(null)
 		}
@@ -160,10 +160,10 @@ export default function ArchivedDataPage() {
 		}
 	}
 
-	const handlePermanentlyDeleteTeamMember = async (memberId: string) => {
+	const handlePermanentlyDeleteStaffMember = async (memberId: string) => {
 		if (!session?.user?.email) return
 
-		if (!confirm('Are you sure you want to permanently delete this team member? This action cannot be undone.')) {
+		if (!confirm('Are you sure you want to permanently delete this staff member? This action cannot be undone.')) {
 			return
 		}
 
@@ -171,10 +171,10 @@ export default function ArchivedDataPage() {
 		setError(null)
 		try {
 			const { api } = await import('../../../lib/api')
-			await api.permanentlyDeleteTeamMember(session.user.email, memberId)
+			await api.permanentlyDeleteStaffMember(session.user.email, memberId)
 			fetchArchivedData()
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to delete team member')
+			setError(err instanceof Error ? err.message : 'Failed to delete staff member')
 		} finally {
 			setDeletingMemberId(null)
 		}
@@ -219,7 +219,7 @@ export default function ArchivedDataPage() {
 			<main className="flex-1 p-6 md:p-8 lg:p-12">
 				<div className="mb-12">
 					<h1 className="text-3xl md:text-4xl font-light text-slate-900 mb-2">Archived Data</h1>
-					<p className="text-base text-slate-500 font-light">View and manage archived clients, team members, and shifts</p>
+					<p className="text-base text-slate-500 font-light">View and manage archived clients, staff members, and shifts</p>
 				</div>
 
 				{error && (
@@ -307,10 +307,10 @@ export default function ArchivedDataPage() {
 
 						{/* Archived Team Members Section */}
 						<div className="bg-white rounded-lg shadow-sm border border-slate-200 p-6">
-							<h2 className="text-xl font-semibold text-slate-900 mb-4">Archived Team Members ({archivedTeamMembers.length})</h2>
-							{archivedTeamMembers.length === 0 ? (
+							<h2 className="text-xl font-semibold text-slate-900 mb-4">Archived Staff Members ({archivedStaffMembers.length})</h2>
+							{archivedStaffMembers.length === 0 ? (
 								<div className="text-center py-8">
-									<p className="text-slate-500">No archived team members</p>
+									<p className="text-slate-500">No archived staff members</p>
 								</div>
 							) : (
 								<div className="overflow-x-auto">
@@ -325,7 +325,7 @@ export default function ArchivedDataPage() {
 											</tr>
 										</thead>
 										<tbody className="bg-white divide-y divide-gray-200">
-											{archivedTeamMembers.map((member) => (
+											{archivedStaffMembers.map((member) => (
 												<tr key={member.id} className="hover:bg-slate-50">
 													<td className="px-6 py-4 whitespace-nowrap">
 														<div className="text-sm font-medium text-slate-900">{member.name}</div>
@@ -344,7 +344,7 @@ export default function ArchivedDataPage() {
 													<td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
 														<div className="flex items-center gap-2">
 															<button
-																onClick={() => handleRestoreTeamMember(member.id)}
+																onClick={() => handleRestoreStaffMember(member.id)}
 																disabled={restoringMemberId === member.id || deletingMemberId === member.id}
 																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-green-600 bg-green-50 border border-green-200 rounded-lg hover:bg-green-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 															>
@@ -354,7 +354,7 @@ export default function ArchivedDataPage() {
 																{restoringMemberId === member.id ? 'Restoring...' : 'Restore'}
 															</button>
 															<button
-																onClick={() => handlePermanentlyDeleteTeamMember(member.id)}
+																onClick={() => handlePermanentlyDeleteStaffMember(member.id)}
 																disabled={restoringMemberId === member.id || deletingMemberId === member.id}
 																className="inline-flex items-center px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
 															>
@@ -388,7 +388,7 @@ export default function ArchivedDataPage() {
 												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Service Date</th>
 												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Time</th>
 												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Client</th>
-												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Team Member</th>
+												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Staff Member</th>
 												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
 												<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
 											</tr>
@@ -406,7 +406,7 @@ export default function ArchivedDataPage() {
 														<div className="text-sm font-medium text-slate-900">{shift.clientName}</div>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap">
-														<div className="text-sm text-slate-900">{shift.teamMemberName || '-'}</div>
+														<div className="text-sm text-slate-900">{shift.staffMemberName || '-'}</div>
 													</td>
 													<td className="px-6 py-4 whitespace-nowrap">
 														<span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">

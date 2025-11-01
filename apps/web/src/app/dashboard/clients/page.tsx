@@ -14,7 +14,7 @@ const clientSchema = z.object({
 	suburb: z.string().max(100, 'Suburb is too long').optional().or(z.literal('')),
 	state: z.string().max(50, 'State is too long').optional().or(z.literal('')),
 	postcode: z.string().max(10, 'Postcode is too long').optional().or(z.literal('')),
-	clientType: z.string().max(50, 'Client type is too long').optional().or(z.literal('')),
+	clientTypeId: z.string().max(50, 'Client type is too long').optional().or(z.literal('')),
 	phoneNumber: z.string().max(20, 'Phone number is too long').optional().or(z.literal('')),
 	contactPerson: z.string().max(100, 'Contact person is too long').optional().or(z.literal('')),
 	contactPhone: z.string().max(20, 'Contact phone is too long').optional().or(z.literal('')),
@@ -32,6 +32,7 @@ interface Client {
 	state: string
 	postcode: string
 	clientType: string
+	clientTypeId: string
 	phoneNumber: string
 	contactPerson: string
 	contactPhone: string
@@ -43,10 +44,17 @@ interface Client {
 	updatedAt: string
 }
 
+interface ClientType {
+	id: string
+	name: string
+	order: number
+}
+
 export default function ClientsPage() {
 	const { data: session } = useSession()
 	const router = useRouter()
 	const [clients, setClients] = useState<Client[]>([])
+	const [clientTypes, setClientTypes] = useState<ClientType[]>([])
 	const [loading, setLoading] = useState(true)
 	const [error, setError] = useState<string | null>(null)
 	const [isModalOpen, setIsModalOpen] = useState(false)
@@ -65,7 +73,7 @@ export default function ClientsPage() {
 			suburb: '',
 			state: '',
 			postcode: '',
-			clientType: '',
+			clientTypeId: '',
 			phoneNumber: '',
 			contactPerson: '',
 			contactPhone: '',
@@ -80,6 +88,7 @@ export default function ClientsPage() {
 			return
 		}
 		fetchClients()
+		fetchClientTypes()
 	}, [session, router, showInactive])
 
 	// Close dropdown when clicking outside
@@ -94,6 +103,22 @@ export default function ClientsPage() {
 			document.removeEventListener('mousedown', handleClickOutside)
 		}
 	}, [openDropdownId])
+
+	const fetchClientTypes = async () => {
+		try {
+			const { api } = await import('../../../lib/api')
+			const data = await api.getClientTypes()
+			setClientTypes(data)
+		} catch (err) {
+			console.error('Failed to load client types:', err)
+			// Fallback to hardcoded values if API fails
+			setClientTypes([
+				{ id: '1', name: 'Aged Care', order: 1 },
+				{ id: '2', name: 'NDIS', order: 2 },
+				{ id: '3', name: 'Others', order: 3 }
+			])
+		}
+	}
 
 	const fetchClients = async () => {
 		if (!session?.user?.email) return
@@ -123,7 +148,7 @@ export default function ClientsPage() {
 			suburb: '',
 			state: '',
 			postcode: '',
-			clientType: '',
+			clientTypeId: '',
 			phoneNumber: '',
 			contactPerson: '',
 			contactPhone: '',
@@ -141,7 +166,7 @@ export default function ClientsPage() {
 			suburb: client.suburb || '',
 			state: client.state || '',
 			postcode: client.postcode || '',
-			clientType: client.clientType || '',
+			clientTypeId: client.clientTypeId || '',
 			phoneNumber: client.phoneNumber || '',
 			contactPerson: client.contactPerson || '',
 			contactPhone: client.contactPhone || '',
@@ -162,11 +187,14 @@ export default function ClientsPage() {
 		setError(null)
 		try {
 			const { api } = await import('../../../lib/api')
+			// Convert form values to API format (clientTypeId instead of clientType)
+			const apiValues = { ...values, clientTypeId: values.clientTypeId || '' }
+			delete (apiValues as any).clientType
 			
 			if (editingClient) {
-				await api.updateClient(session.user.email, editingClient.id, values)
+				await api.updateClient(session.user.email, editingClient.id, apiValues)
 			} else {
-				await api.createClient(session.user.email, values)
+				await api.createClient(session.user.email, apiValues)
 			}
 
 			closeModal()
@@ -304,7 +332,7 @@ export default function ClientsPage() {
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Phone</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Contact</th>
 										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
-										<th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
+										<th></th>
 									</tr>
 								</thead>
 								<tbody className="bg-white divide-y divide-gray-200">
@@ -480,21 +508,23 @@ export default function ClientsPage() {
 											)}
 										</div>
 										<div>
-											<label htmlFor="clientType" className="block text-sm font-medium text-slate-700 mb-2">
+											<label htmlFor="clientTypeId" className="block text-sm font-medium text-slate-700 mb-2">
 												Client Type
 											</label>
 											<select
-												id="clientType"
+												id="clientTypeId"
 												className="w-full rounded-lg border border-slate-300 px-4 py-3 text-slate-900 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors"
-												{...register('clientType')}
+												{...register('clientTypeId')}
 											>
 												<option value="">Select Client Type</option>
-												<option value="Aged Care">Aged Care</option>
-												<option value="NDIS">NDIS</option>
-												<option value="Others">Others</option>
+												{clientTypes.map((type) => (
+													<option key={type.id} value={type.id}>
+														{type.name}
+													</option>
+												))}
 											</select>
-											{errors.clientType && (
-												<p className="mt-1 text-sm text-red-600">{errors.clientType.message}</p>
+											{errors.clientTypeId && (
+												<p className="mt-1 text-sm text-red-600">{errors.clientTypeId.message}</p>
 											)}
 										</div>
 									</div>

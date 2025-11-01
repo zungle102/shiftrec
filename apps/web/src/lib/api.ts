@@ -29,14 +29,31 @@ export async function apiRequest<T>(
 				throw new Error(`API endpoint not found: ${url}. Make sure the backend server is running on ${API_BASE_URL}`)
 			}
 			
-			let errorData
+			let errorData: any
 			try {
 				errorData = await response.json()
-			} catch {
-				errorData = { error: `HTTP ${response.status}: ${response.statusText}` }
+				console.error('API Error Response:', JSON.stringify(errorData, null, 2))
+				console.error('Error Status:', response.status)
+			} catch (e) {
+				console.error('Failed to parse error response as JSON:', e)
+				errorData = { message: `HTTP ${response.status}: ${response.statusText}` }
 			}
 			
-			const errorMessage = errorData.error || errorData.message || `HTTP error! status: ${response.status}`
+			// NestJS returns errors with 'message' field containing the actual error message
+			// 'error' field contains the status text like "Bad Request"
+			// The message might be a string or array of strings
+			// When BadRequestException is thrown with an object, it includes 'message' and 'errors' fields
+			let errorMessage = errorData.message
+			if (Array.isArray(errorMessage)) {
+				errorMessage = errorMessage.join(', ')
+			}
+			// If there are individual errors in the response, append them
+			if (errorData.errors && Array.isArray(errorData.errors) && errorData.errors.length > 0) {
+				errorMessage = errorMessage ? `${errorMessage}. Details: ${errorData.errors.join(', ')}` : errorData.errors.join(', ')
+			}
+			errorMessage = errorMessage || errorData.error || `HTTP error! status: ${response.status}`
+			console.error('Extracted error message:', errorMessage)
+			console.error('Full error data:', errorData)
 			throw new Error(errorMessage)
 		}
 
@@ -82,14 +99,15 @@ export const api = {
 			body: JSON.stringify(data)
 		}, userEmail),
 
-	// Team Members
-		getTeamMembers: (userEmail: string, includeArchived?: boolean) =>
+	// Staff Members
+		getStaffMembers: (userEmail: string, includeArchived?: boolean) =>
 		apiRequest<Array<{
 			id: string
 			name: string
 			email: string
 			phone: string
 			idType: string
+			idTypeId: string
 			idNumber: string
 			address: string
 			suburb: string
@@ -103,13 +121,14 @@ export const api = {
 			method: 'GET'
 		}, userEmail),
 
-	createTeamMember: (userEmail: string, data: { name: string; email: string; phone?: string; idType?: string; idNumber?: string; address?: string; suburb?: string; state?: string; postcode?: string }) =>
+	createStaffMember: (userEmail: string, data: { name: string; email: string; phone?: string; idType?: string; idNumber?: string; address?: string; suburb?: string; state?: string; postcode?: string }) =>
 		apiRequest<{
 			id: string
 			name: string
 			email: string
 			phone: string
 			idType: string
+			idTypeId: string
 			idNumber: string
 			address: string
 			suburb: string
@@ -120,13 +139,14 @@ export const api = {
 			body: JSON.stringify(data)
 		}, userEmail),
 
-	updateTeamMember: (userEmail: string, memberId: string, data: { name: string; email: string; phone?: string; idType?: string; idNumber?: string; address?: string; suburb?: string; state?: string; postcode?: string }) =>
+	updateStaffMember: (userEmail: string, memberId: string, data: { name: string; email: string; phone?: string; idType?: string; idNumber?: string; address?: string; suburb?: string; state?: string; postcode?: string }) =>
 		apiRequest<{
 			id: string
 			name: string
 			email: string
 			phone: string
 			idType: string
+			idTypeId: string
 			idNumber: string
 			address: string
 			suburb: string
@@ -137,12 +157,12 @@ export const api = {
 			body: JSON.stringify(data)
 		}, userEmail),
 
-	deleteTeamMember: (userEmail: string, memberId: string) =>
+	deleteStaffMember: (userEmail: string, memberId: string) =>
 		apiRequest<{ success: boolean; archived: boolean }>(`/team/members/${memberId}`, {
 			method: 'DELETE'
 		}, userEmail),
 
-	restoreTeamMember: (userEmail: string, memberId: string) =>
+	restoreStaffMember: (userEmail: string, memberId: string) =>
 		apiRequest<{
 			id: string
 			archived: boolean
@@ -150,7 +170,7 @@ export const api = {
 			method: 'PATCH'
 		}, userEmail),
 
-	toggleTeamMemberActive: (userEmail: string, memberId: string) =>
+	toggleStaffMemberActive: (userEmail: string, memberId: string) =>
 		apiRequest<{
 			id: string
 			active: boolean
@@ -170,14 +190,15 @@ export const api = {
 			clientName: string
 			clientLocation: string
 			clientType: string
+			clientTypeId: string
 			clientEmail: string
 			clientPhoneNumber: string
 			clientContactPerson: string
 			clientContactPhone: string
-			teamMemberId: string
-			teamMemberName: string
-			teamMemberIds?: string[]
-			teamMemberNames?: string[]
+			staffMemberId: string
+			staffMemberName: string
+			notifiedStaffMemberIds?: string[]
+			staffMemberNames?: string[]
 			status: string
 			note: string
 			archived: boolean
@@ -193,14 +214,9 @@ export const api = {
 		endTime: string
 		breakDuration?: string
 		serviceType?: string
-		clientName: string
-		clientLocation?: string
-		clientType?: string
-		clientEmail?: string
-		clientPhoneNumber?: string
-		clientContactPerson?: string
-		clientContactPhone?: string
-		teamMemberId?: string
+		clientId: string
+		staffMemberId?: string
+		notifiedStaffMemberIds?: string[]
 		note?: string
 	}) =>
 		apiRequest<{
@@ -213,12 +229,13 @@ export const api = {
 			clientName: string
 			clientLocation: string
 			clientType: string
+			clientTypeId: string
 			clientEmail: string
 			clientPhoneNumber: string
 			clientContactPerson: string
 			clientContactPhone: string
-			teamMemberId: string
-			teamMemberName: string
+			staffMemberId: string
+			staffMemberName: string
 			note: string
 		}>('/shift/shifts', {
 			method: 'POST',
@@ -233,13 +250,13 @@ export const api = {
 		serviceType?: string
 		clientName?: string
 		clientLocation?: string
-		clientType?: string
+		clientTypeId?: string
 		clientEmail?: string
 		clientPhoneNumber?: string
 		clientContactPerson?: string
 		clientContactPhone?: string
-		teamMemberId?: string
-		teamMemberIds?: string[]
+		staffMemberId?: string
+		notifiedStaffMemberIds?: string[]
 		status?: string
 		note?: string
 	}) =>
@@ -250,6 +267,7 @@ export const api = {
 			endTime: string
 			breakDuration: string
 			serviceType: string
+			clientId: string
 			clientName: string
 			clientLocation: string
 			clientType: string
@@ -257,10 +275,10 @@ export const api = {
 			clientPhoneNumber: string
 			clientContactPerson: string
 			clientContactPhone: string
-			teamMemberId: string
-			teamMemberName: string
-			teamMemberIds?: string[]
-			teamMemberNames?: string[]
+			staffMemberId: string
+			staffMemberName: string
+			notifiedStaffMemberIds?: string[]
+			staffMemberNames?: string[]
 			note: string
 		}>(`/shift/shifts/${shiftId}`, {
 			method: 'PATCH',
@@ -298,6 +316,7 @@ export const api = {
 			state: string
 			postcode: string
 			clientType: string
+			clientTypeId: string
 			phoneNumber: string
 			contactPerson: string
 			contactPhone: string
@@ -317,7 +336,7 @@ export const api = {
 		suburb?: string
 		state?: string
 		postcode?: string
-		clientType?: string
+		clientTypeId?: string
 		phoneNumber?: string
 		contactPerson?: string
 		contactPhone?: string
@@ -332,6 +351,7 @@ export const api = {
 			state: string
 			postcode: string
 			clientType: string
+			clientTypeId: string
 			phoneNumber: string
 			contactPerson: string
 			contactPhone: string
@@ -348,7 +368,7 @@ export const api = {
 		suburb?: string
 		state?: string
 		postcode?: string
-		clientType?: string
+		clientTypeId?: string
 		phoneNumber?: string
 		contactPerson?: string
 		contactPhone?: string
@@ -364,6 +384,7 @@ export const api = {
 			state: string
 			postcode: string
 			clientType: string
+			clientTypeId: string
 			phoneNumber: string
 			contactPerson: string
 			contactPhone: string
@@ -404,12 +425,32 @@ export const api = {
 			method: 'DELETE'
 		}, userEmail),
 
-	permanentlyDeleteTeamMember: (userEmail: string, memberId: string) =>
+	permanentlyDeleteStaffMember: (userEmail: string, memberId: string) =>
 		apiRequest<{
 			success: boolean
 			deleted: boolean
 		}>(`/team/members/${memberId}/permanent`, {
 			method: 'DELETE'
-		}, userEmail)
+		}, userEmail),
+
+	// ID Types
+	getIdTypes: () =>
+		apiRequest<Array<{
+			id: string
+			name: string
+			order: number
+		}>>('/id-types', {
+			method: 'GET'
+		}),
+
+	// Client Types
+	getClientTypes: () =>
+		apiRequest<Array<{
+			id: string
+			name: string
+			order: number
+		}>>('/client-types', {
+			method: 'GET'
+		})
 }
 

@@ -9,21 +9,65 @@ export default async function DashboardPage() {
 		redirect('/signin')
 	}
 
-	// Fetch team members count
-	let teamMemberCount = 0
-	let activeTeamMemberCount = 0
-	let inactiveTeamMemberCount = 0
+	// Fetch staff members count and stats (excluding archived)
+	let staffMemberCount = 0
+	let activeStaffMemberCount = 0
+	let inactiveStaffMemberCount = 0
+	let archivedStaffMemberCount = 0
+	let staffMembersWithShiftsThisWeek = 0
 	try {
 		if (session.user?.email) {
-			const members = await api.getTeamMembers(session.user.email)
-			teamMemberCount = members.length
-			// Count active team members (not archived and active: true)
-			activeTeamMemberCount = members.filter(member => !member.archived && member.active !== false).length
-			// Count inactive team members (not archived and active: false)
-			inactiveTeamMemberCount = members.filter(member => !member.archived && member.active === false).length
+			console.log('[Dashboard] Fetching staff members for email:', session.user.email)
+			// Get non-archived staff members (default behavior)
+			const members = await api.getStaffMembers(session.user.email, false)
+			console.log('[Dashboard] Non-archived staff members fetched:', members.length)
+			// Get archived staff members separately for the archived count
+			const archivedMembers = await api.getStaffMembers(session.user.email, true)
+			archivedStaffMemberCount = archivedMembers.filter(member => member.archived === true).length
+			console.log('[Dashboard] Archived staff members count:', archivedStaffMemberCount)
+			
+			// Count only non-archived staff members
+			staffMemberCount = members.length
+			// Count active staff members (not archived and active: true)
+			activeStaffMemberCount = members.filter(member => member.active !== false).length
+			// Count inactive staff members (not archived and active: false)
+			inactiveStaffMemberCount = members.filter(member => member.active === false).length
+			console.log('[Dashboard] Final counts - Total:', staffMemberCount, 'Active:', activeStaffMemberCount, 'Inactive:', inactiveStaffMemberCount)
+			
+			// Count staff members with shifts this week
+			try {
+				const shifts = await api.getShifts(session.user.email)
+				const now = new Date()
+				const dayOfWeek = now.getDay()
+				const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+				const startOfWeek = new Date(now)
+				startOfWeek.setDate(now.getDate() - daysFromMonday)
+				startOfWeek.setHours(0, 0, 0, 0)
+				const endOfWeek = new Date(startOfWeek)
+				endOfWeek.setDate(startOfWeek.getDate() + 6)
+				endOfWeek.setHours(23, 59, 59, 999)
+				
+				const shiftsThisWeek = shifts.filter(shift => {
+					const shiftDate = new Date(shift.serviceDate)
+					return shiftDate >= startOfWeek && shiftDate <= endOfWeek && !shift.archived
+				})
+				
+				const staffMemberIdsWithShifts = new Set<string>()
+				shiftsThisWeek.forEach(shift => {
+					if (shift.staffMemberId) {
+						staffMemberIdsWithShifts.add(shift.staffMemberId)
+					}
+					if (shift.notifiedStaffMemberIds) {
+						shift.notifiedStaffMemberIds.forEach(id => staffMemberIdsWithShifts.add(id))
+					}
+				})
+				staffMembersWithShiftsThisWeek = staffMemberIdsWithShifts.size
+			} catch (error) {
+				console.error('Failed to calculate staff members with shifts:', error)
+			}
 		}
 	} catch (error) {
-		console.error('Failed to fetch team members:', error)
+		console.error('Failed to fetch staff members:', error)
 		// Continue with count of 0 if fetch fails
 	}
 
@@ -45,15 +89,18 @@ export default async function DashboardPage() {
 		// Continue with count of 0 if fetch fails
 	}
 
-	// Fetch shifts and calculate stats
+	// Fetch shifts and calculate stats (excluding archived)
+	let totalNonArchivedShifts = 0
 	let shiftsThisWeek = 0
 	let hoursThisWeek = 0
 	let averageShiftsPerWeek = 0
 	let averageHoursPerWeek = 0
 	try {
 		if (session.user?.email) {
-			const shifts = await api.getShifts(session.user.email)
-			const totalShifts = shifts.length
+			// Get non-archived shifts (default behavior)
+			const shifts = await api.getShifts(session.user.email, false)
+			// All shifts returned are already non-archived, so length is correct
+			totalNonArchivedShifts = shifts.length
 
 			// Calculate shifts this week (Monday to Sunday)
 			const now = new Date()
@@ -85,16 +132,16 @@ export default async function DashboardPage() {
 			})
 			hoursThisWeek = Math.round(totalHoursThisWeek * 10) / 10 // Round to 1 decimal
 
-			// Calculate average shifts per week
-			if (totalShifts > 0) {
+			// Calculate average shifts per week (shifts are already non-archived from API)
+			if (totalNonArchivedShifts > 0) {
 				const shiftDates = shifts.map(s => new Date(s.serviceDate)).sort((a, b) => a.getTime() - b.getTime())
 				const firstShiftDate = shiftDates[0]
 				const lastShiftDate = shiftDates[shiftDates.length - 1]
 				const daysDiff = Math.max(1, Math.ceil((lastShiftDate.getTime() - firstShiftDate.getTime()) / (1000 * 60 * 60 * 24)))
 				const weeksDiff = Math.max(1, Math.ceil(daysDiff / 7))
-				averageShiftsPerWeek = Math.round((totalShifts / weeksDiff) * 10) / 10 // Round to 1 decimal
+				averageShiftsPerWeek = Math.round((totalNonArchivedShifts / weeksDiff) * 10) / 10 // Round to 1 decimal
 
-				// Calculate average hours per week
+				// Calculate average hours per week (shifts are already non-archived from API)
 				let totalHours = 0
 				shifts.forEach(shift => {
 					const start = new Date(`2000-01-01T${shift.startTime}`)
@@ -151,8 +198,8 @@ export default async function DashboardPage() {
 					<div className="bg-white border-2 border-green-200 rounded-xl shadow-lg pb-8 p-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-200">
 						<div className="flex items-center justify-between mb-6">
 							<div>
-								<p className="text-sm font-normal text-slate-500 mb-2">Team Members</p>
-								<p className="text-3xl md:text-4xl font-bold text-green-600">{teamMemberCount}</p>
+								<p className="text-sm font-normal text-slate-500 mb-2">Staff Members</p>
+								<p className="text-3xl md:text-4xl font-bold text-green-600">{staffMemberCount}</p>
 							</div>
 							<div className="w-12 h-12 flex items-center justify-center bg-green-500 rounded-xl shadow-md">
 								<svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -163,12 +210,24 @@ export default async function DashboardPage() {
 						<div className="space-y-3 pt-6 border-t border-slate-200">
 							<div className="flex items-center justify-between">
 								<span className="text-xs text-slate-500 font-light">Active</span>
-								<span className="text-sm font-normal text-slate-900">{activeTeamMemberCount}</span>
+								<span className="text-sm font-semibold text-green-600">{activeStaffMemberCount}</span>
 							</div>
 							<div className="flex items-center justify-between">
 								<span className="text-xs text-slate-500 font-light">Inactive</span>
-								<span className="text-sm font-normal text-slate-900">{inactiveTeamMemberCount}</span>
+								<span className="text-sm font-normal text-slate-900">{inactiveStaffMemberCount}</span>
 							</div>
+							{archivedStaffMemberCount > 0 && (
+								<div className="flex items-center justify-between">
+									<span className="text-xs text-slate-500 font-light">Archived</span>
+									<span className="text-sm font-normal text-slate-500">{archivedStaffMemberCount}</span>
+								</div>
+							)}
+							{staffMembersWithShiftsThisWeek > 0 && (
+								<div className="flex items-center justify-between pt-2 border-t border-slate-100">
+									<span className="text-xs text-slate-500 font-light">With Shifts (This Week)</span>
+									<span className="text-sm font-semibold text-green-700">{staffMembersWithShiftsThisWeek}</span>
+								</div>
+							)}
 						</div>
 					</div>
 
@@ -176,7 +235,7 @@ export default async function DashboardPage() {
 						<div className="flex items-center justify-between mb-6">
 							<div>
 								<p className="text-sm font-normal text-slate-500 mb-2">Shifts</p>
-								<p className="text-3xl md:text-4xl font-bold text-purple-600">{shiftsThisWeek}</p>
+								<p className="text-3xl md:text-4xl font-bold text-purple-600">{totalNonArchivedShifts}</p>
 							</div>
 							<div className="w-12 h-12 flex items-center justify-center bg-purple-500 rounded-xl shadow-md">
 								<svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

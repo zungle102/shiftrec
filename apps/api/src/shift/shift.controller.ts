@@ -6,11 +6,18 @@ export class ShiftController {
 	constructor(private readonly shiftService: ShiftService) {}
 
 	@Get('shifts')
-	async getShifts(@Headers('x-user-email') ownerEmail: string, @Query('includeArchived') includeArchived?: string) {
+	async getShifts(
+		@Headers('x-user-email') ownerEmail: string, 
+		@Query('includeArchived') includeArchived?: string,
+		@Query('page') page?: string,
+		@Query('limit') limit?: string
+	) {
 		if (!ownerEmail) {
 			return { error: 'Unauthorized' }
 		}
-		return await this.shiftService.getShifts(ownerEmail, includeArchived === 'true')
+		const pageNum = page ? parseInt(page, 10) : 1
+		const limitNum = limit ? parseInt(limit, 10) : 100
+		return await this.shiftService.getShifts(ownerEmail, includeArchived === 'true', pageNum, limitNum)
 	}
 
 	@Get('shifts/:id')

@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Patch, Delete, Body, Param, Query, Req, UnauthorizedException } from '@nestjs/common'
 import { TeamService } from './team.service'
-import { CreateTeamMemberDto, UpdateTeamMemberDto } from './dto/team-member.dto'
+import { CreateStaffMemberDto, UpdateStaffMemberDto } from './dto/staff-member.dto'
 import { Request } from 'express'
 
 @Controller('team')
@@ -16,51 +16,51 @@ export class TeamController {
 	}
 
 	@Get('members')
-	async getTeamMembers(@Req() req: Request, @Query('includeArchived') includeArchived?: string) {
+	async getStaffMembers(@Req() req: Request, @Query('includeArchived') includeArchived?: string) {
 		const email = this.getEmailFromRequest(req)
-		return this.teamService.getTeamMembers(email, includeArchived === 'true')
+		return this.teamService.getStaffMembers(email, includeArchived === 'true')
 	}
 
 	@Get('members/:id')
-	async getTeamMember(@Req() req: Request, @Param('id') id: string) {
+	async getStaffMember(@Req() req: Request, @Param('id') id: string) {
 		const email = this.getEmailFromRequest(req)
-		return this.teamService.getTeamMember(email, id)
+		return this.teamService.getStaffMember(email, id)
 	}
 
 	@Post('members')
-	async createTeamMember(@Req() req: Request, @Body() dto: CreateTeamMemberDto) {
+	async createStaffMember(@Req() req: Request, @Body() dto: CreateStaffMemberDto) {
 		const email = this.getEmailFromRequest(req)
-		return this.teamService.createTeamMember(email, dto)
+		return this.teamService.createStaffMember(email, dto)
 	}
 
 	@Patch('members/:id')
-	async updateTeamMember(@Req() req: Request, @Param('id') id: string, @Body() dto: UpdateTeamMemberDto) {
+	async updateStaffMember(@Req() req: Request, @Param('id') id: string, @Body() dto: UpdateStaffMemberDto) {
 		const email = this.getEmailFromRequest(req)
-		return this.teamService.updateTeamMember(email, id, dto)
+		return this.teamService.updateStaffMember(email, id, dto)
 	}
 
 	@Delete('members/:id/permanent')
-	async permanentlyDeleteTeamMember(@Req() req: Request, @Param('id') id: string) {
+	async permanentlyDeleteStaffMember(@Req() req: Request, @Param('id') id: string) {
 		const email = this.getEmailFromRequest(req)
-		return this.teamService.permanentlyDeleteTeamMember(email, id)
+		return this.teamService.permanentlyDeleteStaffMember(email, id)
 	}
 
 	@Delete('members/:id')
-	async deleteTeamMember(@Req() req: Request, @Param('id') id: string) {
+	async deleteStaffMember(@Req() req: Request, @Param('id') id: string) {
 		const email = this.getEmailFromRequest(req)
-		return this.teamService.deleteTeamMember(email, id)
+		return this.teamService.deleteStaffMember(email, id)
 	}
 
 	@Patch('members/:id/restore')
-	async restoreTeamMember(@Req() req: Request, @Param('id') id: string) {
+	async restoreStaffMember(@Req() req: Request, @Param('id') id: string) {
 		const email = this.getEmailFromRequest(req)
-		return this.teamService.restoreTeamMember(email, id)
+		return this.teamService.restoreStaffMember(email, id)
 	}
 
 	@Patch('members/:id/toggle-active')
-	async toggleTeamMemberActive(@Req() req: Request, @Param('id') id: string) {
+	async toggleStaffMemberActive(@Req() req: Request, @Param('id') id: string) {
 		const email = this.getEmailFromRequest(req)
-		return this.teamService.toggleTeamMemberActive(email, id)
+		return this.teamService.toggleStaffMemberActive(email, id)
 	}
 }
 

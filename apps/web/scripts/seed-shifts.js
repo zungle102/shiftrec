@@ -126,17 +126,17 @@ async function seedShifts() {
 		const clients = await clientsCollection.find({ ownerEmail: userEmail, archived: { $ne: true } }).toArray()
 		console.log(`✓ Found ${clients.length} client(s)`)
 		
-		// Get team members for this user
-		const teamMembersCollection = db.collection('teamMembers')
-		const teamMembers = await teamMembersCollection.find({ ownerEmail: userEmail, archived: { $ne: true } }).toArray()
-		console.log(`✓ Found ${teamMembers.length} team member(s)`)
+		// Get staff members for this user
+		const staffMembersCollection = db.collection('staffMembers')
+		const teamMembers = await staffMembersCollection.find({ ownerEmail: userEmail, archived: { $ne: true } }).toArray()
+		console.log(`✓ Found ${teamMembers.length} staff member(s)`)
 		
 		if (clients.length === 0) {
 			console.warn('⚠ Warning: No clients found. Shifts will be created with placeholder client data.')
 		}
 		
 		if (teamMembers.length === 0) {
-			console.warn('⚠ Warning: No team members found. Shifts will be created without team member assignments.')
+			console.warn('⚠ Warning: No staff members found. Shifts will be created without staff member assignments.')
 		}
 		
 		// Delete existing shifts
@@ -222,7 +222,7 @@ async function seedShifts() {
 			const approvedAt = status === 'Timesheet Approved' ? getStatusTimestamp(serviceDate, 'Timesheet Approved') : null
 			
 			// Clear notifiedTeamMemberIds if status is Drafted
-			const notifiedTeamMemberIds = status === 'Drafted' ? [] : (teamMemberId || teamMemberIds.length > 0 ? [teamMemberId || teamMemberIds[0]] : [])
+			const notifiedTeamMemberIdsArray = status === 'Drafted' ? [] : (teamMemberId || teamMemberIds.length > 0 ? [teamMemberId || teamMemberIds[0]] : [])
 			
 			const shift = {
 				ownerEmail: userEmail,
@@ -231,20 +231,14 @@ async function seedShifts() {
 				endTime: endTime,
 				breakDuration: breakDuration,
 				serviceType: serviceType,
-				clientName: clientName,
-				clientLocation: clientLocation,
-				clientType: clientType,
-				clientEmail: clientEmail,
-				clientPhoneNumber: clientPhoneNumber,
-				clientContactPerson: clientContactPerson,
-				clientContactPhone: clientContactPhone,
 				status: status,
 				note: Math.random() > 0.7 ? `Note for shift ${i + 1}` : '',
 				archived: false,
 				createdAt: now,
 				updatedAt: now,
-				...(teamMemberId ? { teamMemberId: new ObjectId(teamMemberId) } : {}),
-				...(teamMemberIds.length > 0 ? { teamMemberIds: teamMemberIds.map(id => new ObjectId(id)) } : {}),
+				...(client ? { clientId: client._id } : {}), // Store only clientId reference (required)
+				...(teamMemberId ? { confirmedStaffMemberId: new ObjectId(teamMemberId) } : {}),
+				...(notifiedTeamMemberIdsArray.length > 0 ? { notifiedStaffMemberIds: notifiedTeamMemberIdsArray.map(id => new ObjectId(id)) } : {}),
 				...(publishedAt ? { publishedAt: publishedAt } : {}),
 				...(assignedAt ? { assignedAt: assignedAt } : {}),
 				...(confirmedAt ? { confirmedAt: confirmedAt } : {}),
@@ -254,8 +248,7 @@ async function seedShifts() {
 				...(missedAt ? { missedAt: missedAt } : {}),
 				...(canceledAt ? { canceledAt: canceledAt } : {}),
 				...(timesheetSubmittedAt ? { timesheetSubmittedAt: timesheetSubmittedAt } : {}),
-				...(approvedAt ? { approvedAt: approvedAt } : {}),
-				notifiedTeamMemberIds: notifiedTeamMemberIds.map(id => new ObjectId(id))
+				...(approvedAt ? { approvedAt: approvedAt } : {})
 			}
 			
 			shifts.push(shift)
